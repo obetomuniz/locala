@@ -1,0 +1,40 @@
+{
+  "name": "locala",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@11.0.9",
+  "description": "Local agents in your browser. On-device chat using the Web Built-in AI APIs via web-ai-sdk.",
+  "license": "MIT",
+  "author": "Beto Muniz <contato@betomuniz.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/obetomuniz/locala.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@web-ai-sdk/prompt": "^0.2.0",
+    "@web-ai-sdk/webmcp": "^0.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
