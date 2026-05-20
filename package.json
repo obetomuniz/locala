@@ -18,12 +18,14 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@web-ai-sdk/prompt": "^0.2.0",
-    "@web-ai-sdk/webmcp": "^0.2.0",
+    "@web-ai-sdk/prompt": "^0.3.0",
+    "@web-ai-sdk/summarizer": "^0.3.0",
+    "@web-ai-sdk/webmcp": "^0.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "valibot": "^1.4.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

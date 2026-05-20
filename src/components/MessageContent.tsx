@@ -1,6 +1,7 @@
 import { memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ThinkingIndicator } from "./ThinkingIndicator";
 
 interface Props {
   content: string;
@@ -32,7 +33,7 @@ const components: Components = {
 
 function MessageContentImpl({ content, streaming }: Props) {
   if (!content) {
-    return streaming ? <em className="muted">…</em> : null;
+    return streaming ? <ThinkingIndicator /> : null;
   }
   return (
     <div className="md">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isPromptAvailable } from "@web-ai-sdk/prompt";
+import { isSummarizerAvailable } from "@web-ai-sdk/summarizer";
 import { Sidebar } from "./components/Sidebar";
 import { Chat } from "./components/Chat";
 import { Workspace } from "./components/Workspace";
@@ -17,6 +18,7 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const promptAvailable = useMemo(() => isPromptAvailable(), []);
+  const summarizerAvailable = useMemo(() => isSummarizerAvailable(), []);
 
   const closeDrawers = useCallback(() => {
     setSidebarOpen(false);
@@ -43,6 +45,10 @@ export function App() {
     },
     [],
   );
+
+  const clearActivity = useCallback(() => {
+    setEvents([]);
+  }, []);
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -93,7 +99,15 @@ export function App() {
     [activeAgent.id, ops, pushActivity],
   );
 
-  const { status, error, send, abort, clear } = useChat({
+  const {
+    status,
+    error,
+    send,
+    abort,
+    clear,
+    streamingAgentIds,
+    activeStreamingAgentId,
+  } = useChat({
     agent: activeAgent,
     mode: activeMode,
     ops,
@@ -113,7 +127,7 @@ export function App() {
     pushActivity({
       kind: "info",
       message: "ready",
-      detail: `prompt:${promptAvailable ? "on" : "off"} · webmcp:${webmcpAvailable ? "on" : "off"}`,
+      detail: `prompt:${promptAvailable ? "on" : "off"} · webmcp:${webmcpAvailable ? "on" : "off"} · summarizer:${summarizerAvailable ? "on" : "off"}`,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -168,6 +182,8 @@ export function App() {
         agents={agents}
         activeId={activeAgent.id}
         open={sidebarOpen}
+        streamingIds={streamingAgentIds}
+        activeStreamingId={activeStreamingAgentId}
         onSelect={handleSelect}
         onCreate={handleCreate}
         onDelete={handleDelete}
@@ -181,16 +197,17 @@ export function App() {
         error={error}
         onSend={send}
         onAbort={abort}
-        onClear={clear}
         onModeChange={handleModeChange}
       />
       <Workspace
         events={events}
         promptAvailable={promptAvailable}
         webmcpAvailable={webmcpAvailable}
+        summarizerAvailable={summarizerAvailable}
         chatCount={agents.length}
         open={workspaceOpen}
         onClose={() => setWorkspaceOpen(false)}
+        onClearActivity={clearActivity}
       />
 
       <button

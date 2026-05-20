@@ -5,6 +5,8 @@ interface Props {
   agents: Agent[];
   activeId: string;
   open: boolean;
+  streamingIds: Set<string>;
+  activeStreamingId: string | null;
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
@@ -15,6 +17,8 @@ export function Sidebar({
   agents,
   activeId,
   open,
+  streamingIds,
+  activeStreamingId,
   onSelect,
   onCreate,
   onDelete,
@@ -73,6 +77,20 @@ export function Sidebar({
                 <span className="agent-row__name" title={agent.name}>
                   {agent.name}
                 </span>
+                {streamingIds.has(agent.id) &&
+                  (agent.id === activeStreamingId ? (
+                    <span
+                      className="agent-row__streaming"
+                      aria-label="streaming"
+                      title="streaming"
+                    />
+                  ) : (
+                    <span
+                      className="agent-row__queued"
+                      aria-label="queued"
+                      title="queued (the model finishes one chat at a time)"
+                    />
+                  ))}
                 <button
                   type="button"
                   className="agent-row__delete"

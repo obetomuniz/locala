@@ -2,17 +2,18 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Agent, Mode } from "../lib/agents";
 import type { ChatMessage } from "../lib/types";
 import { MessageContent } from "./MessageContent";
-import { ModePicker } from "./ModePicker";
+import { ModeMenu } from "./ModeMenu";
+
+export type ChatStatus = "idle" | "streaming" | "unavailable";
 
 interface Props {
   agent: Agent;
   mode: Mode;
   messages: ChatMessage[];
-  status: "idle" | "streaming" | "unavailable";
+  status: ChatStatus;
   error: string | null;
   onSend: (text: string) => void;
   onAbort: () => void;
-  onClear: () => void;
   onModeChange: (modeId: string) => void;
 }
 
@@ -24,7 +25,6 @@ export function Chat({
   error,
   onSend,
   onAbort,
-  onClear,
   onModeChange,
 }: Props) {
   const [draft, setDraft] = useState("");
@@ -40,7 +40,7 @@ export function Chat({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (status === "streaming" || status === "unavailable") return;
+    if (status !== "idle") return;
     if (!draft.trim()) return;
     onSend(draft);
     setDraft("");
@@ -48,6 +48,10 @@ export function Chat({
 
   const unavailable = status === "unavailable";
   const streaming = status === "streaming";
+
+  const placeholder = unavailable
+    ? "Enable the Prompt API to chat…"
+    : `Message in ${mode.name} mode…`;
 
   return (
     <section className="chat">
@@ -58,14 +62,6 @@ export function Chat({
           </div>
           <div className="chat__subtitle">{mode.description}</div>
         </div>
-        <button
-          type="button"
-          className="ghost-btn"
-          onClick={onClear}
-          disabled={messages.length === 0 && !streaming}
-        >
-          Clear
-        </button>
       </header>
 
       <div ref={scrollRef} className="chat__messages">
@@ -103,34 +99,37 @@ export function Chat({
       </div>
 
       <form className="chat__input" onSubmit={submit}>
-        <ModePicker
-          mode={mode}
-          disabled={streaming || unavailable}
-          onChange={onModeChange}
-        />
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={
-            unavailable
-              ? "Enable the Prompt API to chat…"
-              : `Message in ${mode.name} mode…`
-          }
-          disabled={unavailable}
-        />
-        {streaming ? (
-          <button type="button" className="primary-btn" onClick={onAbort}>
-            Stop
-          </button>
-        ) : (
-          <button
-            type="submit"
-            className="primary-btn"
-            disabled={unavailable || !draft.trim()}
-          >
-            Send
-          </button>
-        )}
+        <div className="composer" data-disabled={unavailable ? "true" : "false"}>
+          <ModeMenu
+            mode={mode}
+            disabled={streaming || unavailable}
+            onChange={onModeChange}
+          />
+          <input
+            className="composer__input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={placeholder}
+            disabled={unavailable}
+          />
+          {streaming ? (
+            <button
+              type="button"
+              className="primary-btn composer__send"
+              onClick={onAbort}
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="primary-btn composer__send"
+              disabled={unavailable || !draft.trim()}
+            >
+              Send
+            </button>
+          )}
+        </div>
       </form>
     </section>
   );
