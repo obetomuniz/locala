@@ -33,7 +33,11 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # --ignore-scripts: pnpm 11 hard-errors on unapproved build scripts
+        # (ERR_PNPM_IGNORED_BUILDS). esbuild's platform binary is provided
+        # via the @esbuild/<platform> optional dep, not its install script,
+        # so skipping scripts is safe here.
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Typecheck
         run: pnpm typecheck
