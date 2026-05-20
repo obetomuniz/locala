@@ -45,8 +45,6 @@ pnpm build
 
 The app deploys to GitHub Pages automatically when `main` is updated. The workflow lives at `.github/workflows/deploy.yml`.
 
-For Pages to work the repo must be public (or you need a GitHub Pro plan), and Pages must be set to "GitHub Actions" as the source in repo settings.
-
 ## License
 
 [MIT](./LICENSE) © Beto Muniz
