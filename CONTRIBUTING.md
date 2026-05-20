@@ -6,7 +6,7 @@ Thanks for taking a look. locala is an early proof of concept for a fully on-dev
 
 Requirements:
 
-- Node 20+
+- Node 22+ (pnpm 11 requires it)
 - pnpm 11+ (locked via `packageManager`)
 - A browser with the Web Built-in AI APIs enabled (Chrome 138+ or Edge 138+, with the Prompt API flag). See the [README](./README.md#browser-requirements) for the flag URLs.
 

@@ -27,7 +27,7 @@ If the Prompt API isn't available, the UI shows a banner with the flag URL.
 
 ## Develop
 
-Requirements: Node 20+, pnpm.
+Requirements: Node 22+ (pnpm 11 needs it), pnpm.
 
 ```sh
 pnpm install
