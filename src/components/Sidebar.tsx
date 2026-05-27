@@ -1,8 +1,8 @@
 import type { MouseEvent } from "react";
-import { findMode, type Agent } from "../lib/agents";
+import { findMode, type Chat } from "../lib/chats";
 
 interface Props {
-  agents: Agent[];
+  chats: Chat[];
   activeId: string;
   open: boolean;
   streamingIds: Set<string>;
@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function Sidebar({
-  agents,
+  chats,
   activeId,
   open,
   streamingIds,
@@ -34,12 +34,12 @@ export function Sidebar({
       <header className="sidebar__header">
         <div className="sidebar__brand">
           <span className="brand">◆ locala</span>
-          <span className="brand-sub">local agents</span>
+          <span className="brand-sub">local chats</span>
         </div>
         <button
           type="button"
           className="drawer-close"
-          aria-label="Close agents"
+          aria-label="Close chats"
           onClick={onClose}
         >
           ×
@@ -53,54 +53,54 @@ export function Sidebar({
         New chat
       </button>
 
-      <div className="sidebar__section-label">Agents</div>
-      <nav className="agent-list">
-        {agents.map((agent) => {
-          const active = agent.id === activeId;
-          const mode = findMode(agent.modeId);
-          const count = agent.messages.length;
+      <div className="sidebar__section-label">Chats</div>
+      <nav className="chat-list">
+        {chats.map((chat) => {
+          const active = chat.id === activeId;
+          const mode = findMode(chat.modeId);
+          const count = chat.messages.length;
           return (
             <div
-              key={agent.id}
+              key={chat.id}
               role="button"
               tabIndex={0}
-              className={`agent-row${active ? " is-active" : ""}`}
-              onClick={() => onSelect(agent.id)}
+              className={`chat-row${active ? " is-active" : ""}`}
+              onClick={() => onSelect(chat.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  onSelect(agent.id);
+                  onSelect(chat.id);
                 }
               }}
             >
-              <div className="agent-row__top">
-                <span className="agent-row__name" title={agent.name}>
-                  {agent.name}
+              <div className="chat-row__top">
+                <span className="chat-row__name" title={chat.name}>
+                  {chat.name}
                 </span>
-                {streamingIds.has(agent.id) &&
-                  (agent.id === activeStreamingId ? (
+                {streamingIds.has(chat.id) &&
+                  (chat.id === activeStreamingId ? (
                     <span
-                      className="agent-row__streaming"
+                      className="chat-row__streaming"
                       aria-label="streaming"
                       title="streaming"
                     />
                   ) : (
                     <span
-                      className="agent-row__queued"
+                      className="chat-row__queued"
                       aria-label="queued"
                       title="queued (the model finishes one chat at a time)"
                     />
                   ))}
                 <button
                   type="button"
-                  className="agent-row__delete"
-                  aria-label={`Delete ${agent.name}`}
-                  onClick={handleDelete(agent.id)}
+                  className="chat-row__delete"
+                  aria-label={`Delete ${chat.name}`}
+                  onClick={handleDelete(chat.id)}
                 >
                   ×
                 </button>
               </div>
-              <div className="agent-row__meta">
+              <div className="chat-row__meta">
                 <span className="mode-pill" title={mode.description}>
                   {mode.name}
                 </span>
@@ -116,7 +116,7 @@ export function Sidebar({
       </nav>
 
       <footer className="sidebar__footer">
-        <span className="muted">{agents.length} agent{agents.length === 1 ? "" : "s"}</span>
+        <span className="muted">{chats.length} chat{chats.length === 1 ? "" : "s"}</span>
       </footer>
     </aside>
   );

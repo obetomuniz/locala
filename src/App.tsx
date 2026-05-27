@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { isPromptAvailable } from "@web-ai-sdk/prompt";
-import { isSummarizerAvailable } from "@web-ai-sdk/summarizer";
+import { isAvailable as isPromptAvailable } from "@web-ai-sdk/prompt";
+import { isAvailable as isSummarizerAvailable } from "@web-ai-sdk/summarizer";
 import { Sidebar } from "./components/Sidebar";
 import { Chat } from "./components/Chat";
 import { Workspace } from "./components/Workspace";
-import { useAgents } from "./lib/useAgents";
+import { useChats } from "./lib/useChats";
 import { useChat } from "./lib/useChat";
 import { useWebMCPTools } from "./lib/useWebMCPTools";
-import { findMode } from "./lib/agents";
+import { findMode } from "./lib/chats";
 import type { ActivityEvent } from "./lib/types";
 
 const MAX_ACTIVITY = 50;
 
 export function App() {
-  const { agents, activeAgent, activeMode, ops } = useAgents();
+  const { chats, activeChat, activeMode, ops } = useChats();
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
@@ -53,30 +53,30 @@ export function App() {
   const handleSelect = useCallback(
     (id: string) => {
       setSidebarOpen(false);
-      if (id === activeAgent.id) return;
+      if (id === activeChat.id) return;
       ops.select(id);
-      const next = agents.find((a) => a.id === id);
+      const next = chats.find((c) => c.id === id);
       pushActivity({
-        kind: "agent_switch",
+        kind: "chat_switch",
         message: `→ ${next?.name ?? id}`,
       });
     },
-    [activeAgent.id, agents, ops, pushActivity],
+    [activeChat.id, chats, ops, pushActivity],
   );
 
   const handleCreate = useCallback(() => {
     setSidebarOpen(false);
-    const agent = ops.create(activeAgent.modeId);
+    const chat = ops.create(activeChat.modeId);
     pushActivity({
-      kind: "agent_switch",
-      message: `+ ${agent.name}`,
-      detail: findMode(agent.modeId).name,
+      kind: "chat_switch",
+      message: `+ ${chat.name}`,
+      detail: findMode(chat.modeId).name,
     });
-  }, [ops, activeAgent.modeId, pushActivity]);
+  }, [ops, activeChat.modeId, pushActivity]);
 
   const handleDelete = useCallback(
     (id: string) => {
-      const target = agents.find((a) => a.id === id);
+      const target = chats.find((c) => c.id === id);
       ops.remove(id);
       pushActivity({
         kind: "info",
@@ -84,19 +84,19 @@ export function App() {
         detail: target?.name,
       });
     },
-    [agents, ops, pushActivity],
+    [chats, ops, pushActivity],
   );
 
   const handleModeChange = useCallback(
     (modeId: string) => {
-      ops.setMode(activeAgent.id, modeId);
+      ops.setMode(activeChat.id, modeId);
       pushActivity({
         kind: "info",
         message: "mode",
         detail: findMode(modeId).name,
       });
     },
-    [activeAgent.id, ops, pushActivity],
+    [activeChat.id, ops, pushActivity],
   );
 
   const {
@@ -105,18 +105,18 @@ export function App() {
     send,
     abort,
     clear,
-    streamingAgentIds,
-    activeStreamingAgentId,
+    streamingChatIds,
+    activeStreamingChatId,
   } = useChat({
-    agent: activeAgent,
+    chat: activeChat,
     mode: activeMode,
     ops,
     onActivity: pushActivity,
   });
 
   const { available: webmcpAvailable } = useWebMCPTools({
-    agents,
-    activeAgent,
+    chats,
+    activeChat,
     ops,
     send,
     clear,
@@ -141,7 +141,7 @@ export function App() {
         <button
           type="button"
           className="topbar__btn"
-          aria-label="Open agents"
+          aria-label="Open chats"
           aria-expanded={sidebarOpen}
           onClick={() => {
             setWorkspaceOpen(false);
@@ -155,8 +155,8 @@ export function App() {
           </span>
         </button>
         <div className="topbar__title">
-          <span className="topbar__name" title={activeAgent.name}>
-            {activeAgent.name}
+          <span className="topbar__name" title={activeChat.name}>
+            {activeChat.name}
           </span>
           <span className="topbar__mode">{activeMode.name}</span>
         </div>
@@ -179,20 +179,20 @@ export function App() {
       </header>
 
       <Sidebar
-        agents={agents}
-        activeId={activeAgent.id}
+        chats={chats}
+        activeId={activeChat.id}
         open={sidebarOpen}
-        streamingIds={streamingAgentIds}
-        activeStreamingId={activeStreamingAgentId}
+        streamingIds={streamingChatIds}
+        activeStreamingId={activeStreamingChatId}
         onSelect={handleSelect}
         onCreate={handleCreate}
         onDelete={handleDelete}
         onClose={() => setSidebarOpen(false)}
       />
       <Chat
-        agent={activeAgent}
+        chat={activeChat}
         mode={activeMode}
-        messages={activeAgent.messages}
+        messages={activeChat.messages}
         status={effectiveStatus}
         error={error}
         onSend={send}
@@ -204,7 +204,7 @@ export function App() {
         promptAvailable={promptAvailable}
         webmcpAvailable={webmcpAvailable}
         summarizerAvailable={summarizerAvailable}
-        chatCount={agents.length}
+        chatCount={chats.length}
         open={workspaceOpen}
         onClose={() => setWorkspaceOpen(false)}
         onClearActivity={clearActivity}

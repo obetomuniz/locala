@@ -1,6 +1,6 @@
 # locala
 
-Local agents in your browser. On-device chat using the Web Built-in AI APIs, with zero round-trips to a backend.
+Local chats in your browser. On-device chat using the Web Built-in AI APIs, with zero round-trips to a backend.
 
 - All inference runs on-device via `navigator.LanguageModel` (Chrome / Edge Built-in AI).
 - A small set of personas (Concise, Explorer, Coder) you can pick per chat.

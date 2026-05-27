@@ -41,7 +41,7 @@ export const DEFAULT_MODE_ID = MODES[0].id;
 export const findMode = (id: string): Mode =>
   MODES.find((m) => m.id === id) ?? MODES[0];
 
-export interface Agent {
+export interface Chat {
   id: string;
   name: string;
   modeId: string;
@@ -49,12 +49,12 @@ export interface Agent {
   createdAt: number;
 }
 
-export const DEFAULT_AGENT_NAME = "New chat";
+export const DEFAULT_CHAT_NAME = "New chat";
 
-export function createAgent(modeId: string = DEFAULT_MODE_ID): Agent {
+export function createChat(modeId: string = DEFAULT_MODE_ID): Chat {
   return {
     id: crypto.randomUUID(),
-    name: DEFAULT_AGENT_NAME,
+    name: DEFAULT_CHAT_NAME,
     modeId,
     messages: [],
     createdAt: Date.now(),
@@ -62,46 +62,52 @@ export function createAgent(modeId: string = DEFAULT_MODE_ID): Agent {
 }
 
 interface PersistedState {
-  agents: Agent[];
+  chats: Chat[];
   activeId: string;
 }
 
-const STORAGE_KEY = "locala:v1:state";
+const STORAGE_KEY = "locala:v2:state";
+const LEGACY_STORAGE_KEY = "locala:v1:state";
 
-function isAgent(value: unknown): value is Agent {
+function isChat(value: unknown): value is Chat {
   if (!value || typeof value !== "object") return false;
-  const a = value as Partial<Agent>;
+  const c = value as Partial<Chat>;
   return (
-    typeof a.id === "string" &&
-    typeof a.name === "string" &&
-    typeof a.modeId === "string" &&
-    Array.isArray(a.messages) &&
-    typeof a.createdAt === "number"
+    typeof c.id === "string" &&
+    typeof c.name === "string" &&
+    typeof c.modeId === "string" &&
+    Array.isArray(c.messages) &&
+    typeof c.createdAt === "number"
   );
 }
 
 export function loadState(): PersistedState {
   try {
+    // One-shot cleanup of the v1 key. The shape changed (chats / chatId)
+    // and we deliberately reset rather than migrate.
+    if (localStorage.getItem(LEGACY_STORAGE_KEY) !== null) {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as PersistedState;
       if (
         parsed &&
-        Array.isArray(parsed.agents) &&
-        parsed.agents.length > 0 &&
-        parsed.agents.every(isAgent)
+        Array.isArray(parsed.chats) &&
+        parsed.chats.length > 0 &&
+        parsed.chats.every(isChat)
       ) {
         const activeId =
-          parsed.agents.find((a) => a.id === parsed.activeId)?.id ??
-          parsed.agents[0].id;
-        return { agents: parsed.agents, activeId };
+          parsed.chats.find((c) => c.id === parsed.activeId)?.id ??
+          parsed.chats[0].id;
+        return { chats: parsed.chats, activeId };
       }
     }
   } catch {
     // fall through to default
   }
-  const first = createAgent();
-  return { agents: [first], activeId: first.id };
+  const first = createChat();
+  return { chats: [first], activeId: first.id };
 }
 
 export function saveState(state: PersistedState) {
@@ -112,11 +118,11 @@ export function saveState(state: PersistedState) {
   }
 }
 
-const AGENT_NAME_LIMIT = 32;
+const CHAT_NAME_LIMIT = 32;
 
-export function deriveAgentName(text: string): string {
+export function deriveChatName(text: string): string {
   const trimmed = text.trim().replace(/\s+/g, " ");
-  if (!trimmed) return DEFAULT_AGENT_NAME;
-  if (trimmed.length <= AGENT_NAME_LIMIT) return trimmed;
-  return `${trimmed.slice(0, AGENT_NAME_LIMIT - 1)}…`;
+  if (!trimmed) return DEFAULT_CHAT_NAME;
+  if (trimmed.length <= CHAT_NAME_LIMIT) return trimmed;
+  return `${trimmed.slice(0, CHAT_NAME_LIMIT - 1)}…`;
 }

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef } from "react";
-import { defineTool, isWebMCPAvailable, type Tool } from "@web-ai-sdk/webmcp";
+import { defineTool, isAvailable as isWebMCPAvailable, type Tool } from "@web-ai-sdk/webmcp";
 import { useWebMCP } from "@web-ai-sdk/webmcp/react";
 import * as v from "valibot";
-import { MODES, findMode, type Agent } from "./agents";
-import type { AgentOps } from "./useAgents";
+import { MODES, findMode, type Chat } from "./chats";
+import type { ChatOps } from "./useChats";
 import type { ActivityEvent } from "./types";
 
 interface Args {
-  agents: Agent[];
-  activeAgent: Agent;
-  ops: AgentOps;
+  chats: Chat[];
+  activeChat: Chat;
+  ops: ChatOps;
   send: (text: string) => Promise<void> | void;
   clear: () => void;
   pushActivity: (event: Omit<ActivityEvent, "id" | "ts">) => void;
@@ -61,20 +61,20 @@ export function useWebMCPTools(args: Args) {
       defineTool({
         name: "list_chats",
         description:
-          "List the chat instances ('agents') the user has open, with their current mode and message count. Use to discover ids before switching, deleting, or sending.",
+          "List the chat instances the user has open, with their current mode and message count. Use to discover ids before switching, deleting, or sending.",
         readOnly: true,
         execute: async () => {
           report("list_chats");
-          const { agents, activeAgent } = argsRef.current;
+          const { chats, activeChat } = argsRef.current;
           return {
-            activeChatId: activeAgent.id,
-            chats: agents.map((a) => ({
-              id: a.id,
-              name: a.name,
-              modeId: a.modeId,
-              modeName: findMode(a.modeId).name,
-              messageCount: a.messages.length,
-              createdAt: a.createdAt,
+            activeChatId: activeChat.id,
+            chats: chats.map((c) => ({
+              id: c.id,
+              name: c.name,
+              modeId: c.modeId,
+              modeName: findMode(c.modeId).name,
+              messageCount: c.messages.length,
+              createdAt: c.createdAt,
             })),
           };
         },
@@ -90,9 +90,9 @@ export function useWebMCPTools(args: Args) {
         },
         execute: async ({ modeId }) => {
           const target = modeId ? findMode(modeId).id : undefined;
-          const agent = argsRef.current.ops.create(target);
-          report("new_chat", `→ ${agent.id}`);
-          return { id: agent.id, modeId: agent.modeId };
+          const chat = argsRef.current.ops.create(target);
+          report("new_chat", `→ ${chat.id}`);
+          return { id: chat.id, modeId: chat.modeId };
         },
       }),
       defineTool({
@@ -106,7 +106,7 @@ export function useWebMCPTools(args: Args) {
           required: ["id"],
         },
         execute: async ({ id }) => {
-          const match = argsRef.current.agents.find((a) => a.id === id);
+          const match = argsRef.current.chats.find((c) => c.id === id);
           if (!match) {
             report("switch_chat", `unknown id: ${id}`);
             throw new Error(`No chat with id "${id}".`);
@@ -128,7 +128,7 @@ export function useWebMCPTools(args: Args) {
           required: ["id"],
         },
         execute: async ({ id }) => {
-          const match = argsRef.current.agents.find((a) => a.id === id);
+          const match = argsRef.current.chats.find((c) => c.id === id);
           if (!match) {
             report("delete_chat", `unknown id: ${id}`);
             throw new Error(`No chat with id "${id}".`);
@@ -154,8 +154,8 @@ export function useWebMCPTools(args: Args) {
             report("set_mode", `unknown modeId: ${modeId}`);
             throw new Error(`No mode with id "${modeId}".`);
           }
-          const { activeAgent, ops } = argsRef.current;
-          ops.setMode(activeAgent.id, modeId);
+          const { activeChat, ops } = argsRef.current;
+          ops.setMode(activeChat.id, modeId);
           report("set_mode", `→ ${mode.name}`);
           return { ok: true, modeId };
         },
@@ -163,7 +163,7 @@ export function useWebMCPTools(args: Args) {
       defineTool({
         name: "send_message",
         description:
-          "Send a message to the active chat on behalf of the user. The agent's reply streams into the chat. Confirm wording with the user before sending sensitive content.",
+          "Send a message to the active chat on behalf of the user. The reply streams into the chat. Confirm wording with the user before sending sensitive content.",
         input: SendMessageInput,
         inputSchema: {
           type: "object",

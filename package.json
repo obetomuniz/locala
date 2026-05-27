@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@11.0.9",
-  "description": "Local agents in your browser. On-device chat using the Web Built-in AI APIs via web-ai-sdk.",
+  "description": "Local chats in your browser. On-device chat using the Web Built-in AI APIs via web-ai-sdk.",
   "license": "MIT",
   "author": "Beto Muniz <contato@betomuniz.com>",
   "repository": {
@@ -18,9 +18,9 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@web-ai-sdk/prompt": "^0.3.0",
-    "@web-ai-sdk/summarizer": "^0.3.0",
-    "@web-ai-sdk/webmcp": "^0.3.0",
+    "@web-ai-sdk/prompt": "^0.4.0",
+    "@web-ai-sdk/summarizer": "^0.4.0",
+    "@web-ai-sdk/webmcp": "^0.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",

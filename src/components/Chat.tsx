@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { Agent, Mode } from "../lib/agents";
+import type { Chat as ChatModel, Mode } from "../lib/chats";
 import type { ChatMessage } from "../lib/types";
 import { MessageContent } from "./MessageContent";
 import { ModeMenu } from "./ModeMenu";
@@ -7,7 +7,7 @@ import { ModeMenu } from "./ModeMenu";
 export type ChatStatus = "idle" | "streaming" | "unavailable";
 
 interface Props {
-  agent: Agent;
+  chat: ChatModel;
   mode: Mode;
   messages: ChatMessage[];
   status: ChatStatus;
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function Chat({
-  agent,
+  chat,
   mode,
   messages,
   status,
@@ -36,7 +36,7 @@ export function Chat({
 
   useEffect(() => {
     setDraft("");
-  }, [agent.id]);
+  }, [chat.id]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -57,8 +57,8 @@ export function Chat({
     <section className="chat">
       <header className="chat__header">
         <div className="chat__title-block">
-          <div className="chat__title" title={agent.name}>
-            {agent.name}
+          <div className="chat__title" title={chat.name}>
+            {chat.name}
           </div>
           <div className="chat__subtitle">{mode.description}</div>
         </div>

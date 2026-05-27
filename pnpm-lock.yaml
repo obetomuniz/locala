@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@web-ai-sdk/prompt':
-        specifier: ^0.3.0
-        version: 0.3.0(react@18.3.1)
+        specifier: ^0.4.0
+        version: 0.4.0(react@18.3.1)
       '@web-ai-sdk/summarizer':
-        specifier: ^0.3.0
-        version: 0.3.0(react@18.3.1)
+        specifier: ^0.4.0
+        version: 0.4.0(react@18.3.1)
       '@web-ai-sdk/webmcp':
-        specifier: ^0.3.0
-        version: 0.3.0(react@18.3.1)
+        specifier: ^0.4.0
+        version: 0.4.0(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -485,24 +485,24 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
-  '@web-ai-sdk/prompt@0.3.0':
-    resolution: {integrity: sha512-kM1KWdKoSIQ4wjtclTrMJY7Q/y7oqyYFO0M2Xfk80SW464CUMFOlVjUDjFTa01FJlPKNmWWdlk+014omoteoWA==}
+  '@web-ai-sdk/prompt@0.4.0':
+    resolution: {integrity: sha512-XuIt1peO8cUcBH+3pcHDlwXpBVLndPsKNPDoTjCaDHTr4N3o9YuFf2gkJ8rhUywTwZ8GdKNRNY+8bN4Y4dOItg==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@web-ai-sdk/summarizer@0.3.0':
-    resolution: {integrity: sha512-7AqHgYfGyaIS5F84lX167zB0P45tbvEbACVf1alMvit/20Swy16v3mNLnKvEO54YCMDcUdPXOG6aYX89LJq5LA==}
+  '@web-ai-sdk/summarizer@0.4.0':
+    resolution: {integrity: sha512-Z3F0S9Kfyu/W61ZDnjTyg6oqa0ZUnwO+ZVN345mUL6KvB4l1Asx2v+w6QRRZMzcwQJX/sJf09dQn/sv5JjrBCw==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@web-ai-sdk/webmcp@0.3.0':
-    resolution: {integrity: sha512-uq8k2mOzVta3W7TGjde7iPWt39vDUcZkhujY8n78m6a0nyzz+A/2fv7Cnw+Na6RVWS84Y/Pbf/z+4cvaKUNyUQ==}
+  '@web-ai-sdk/webmcp@0.4.0':
+    resolution: {integrity: sha512-PjJv/lBLx8ZPYJNQ1jQG9z3T+fvyI91tW3q2883Qq4NbDQa8RiN22c3q+0kn2j1txgWQ5+D2lSLHOQrkz0qJ/g==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
@@ -1300,15 +1300,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@web-ai-sdk/prompt@0.3.0(react@18.3.1)':
+  '@web-ai-sdk/prompt@0.4.0(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 
-  '@web-ai-sdk/summarizer@0.3.0(react@18.3.1)':
+  '@web-ai-sdk/summarizer@0.4.0(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 
-  '@web-ai-sdk/webmcp@0.3.0(react@18.3.1)':
+  '@web-ai-sdk/webmcp@0.4.0(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 

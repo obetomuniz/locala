@@ -16,7 +16,7 @@ const KIND_LABELS: Record<ActivityEvent["kind"], string> = {
   chat_response: "reply",
   chat_abort: "abort",
   chat_clear: "clear",
-  agent_switch: "agent",
+  chat_switch: "chat",
   tool_invoked: "tool",
   info: "info",
 };

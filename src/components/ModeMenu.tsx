@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MODES, type Mode } from "../lib/agents";
+import { MODES, type Mode } from "../lib/chats";
 
 interface Props {
   mode: Mode;

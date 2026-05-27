@@ -1,4 +1,7 @@
-import { isSummarizerAvailable, summarize } from "@web-ai-sdk/summarizer";
+import {
+  isAvailable as isSummarizerAvailable,
+  summarize,
+} from "@web-ai-sdk/summarizer";
 
 // Only summarize when the input would actually lose information in the
 // title-truncation fallback (~32 chars). Anything shorter fits whole.
@@ -20,16 +23,14 @@ export async function generateTitle(text: string): Promise<string | null> {
 
   try {
     const result = await summarize({
+      input: trimmed,
       language: "en",
-      text: trimmed,
-      createOptions: {
-        type: "headline",
-        format: "plain-text",
-        length: "short",
-      },
+      type: "headline",
+      format: "plain-text",
+      length: "short",
     });
-    if (!result.summary) return null;
-    const cleaned = result.summary
+    if (!result.output) return null;
+    const cleaned = result.output
       .replace(/^["'`*_\s]+|["'`*_\s.!?]+$/g, "")
       .replace(/\s+/g, " ")
       .trim();

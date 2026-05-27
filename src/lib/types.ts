@@ -4,7 +4,7 @@ export interface ChatMessage {
   id: string;
   role: ChatRole;
   content: string;
-  agentId: string;
+  chatId: string;
   streaming?: boolean;
 }
 
@@ -13,7 +13,7 @@ export type ActivityKind =
   | "chat_response"
   | "chat_abort"
   | "chat_clear"
-  | "agent_switch"
+  | "chat_switch"
   | "tool_invoked"
   | "info";
 

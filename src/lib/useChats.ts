@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  type Agent,
+  type Chat,
   type Mode,
   DEFAULT_MODE_ID,
-  createAgent,
+  createChat,
   findMode,
   loadState,
   saveState,
-} from "./agents";
+} from "./chats";
 import type { ChatMessage } from "./types";
 
 interface State {
-  agents: Agent[];
+  chats: Chat[];
   activeId: string;
 }
 
-export interface AgentOps {
-  create(modeId?: string): Agent;
+export interface ChatOps {
+  create(modeId?: string): Chat;
   remove(id: string): void;
   select(id: string): void;
   rename(id: string, name: string): void;
@@ -30,45 +30,45 @@ export interface AgentOps {
   clearMessages(id: string): void;
 }
 
-export interface UseAgentsResult {
-  agents: Agent[];
-  activeAgent: Agent;
+export interface UseChatsResult {
+  chats: Chat[];
+  activeChat: Chat;
   activeMode: Mode;
   activeId: string;
-  ops: AgentOps;
+  ops: ChatOps;
 }
 
-export function useAgents(): UseAgentsResult {
+export function useChats(): UseChatsResult {
   const [state, setState] = useState<State>(() => loadState());
 
   useEffect(() => {
     saveState(state);
   }, [state]);
 
-  const activeAgent = useMemo(
+  const activeChat = useMemo(
     () =>
-      state.agents.find((a) => a.id === state.activeId) ?? state.agents[0],
-    [state.agents, state.activeId],
+      state.chats.find((c) => c.id === state.activeId) ?? state.chats[0],
+    [state.chats, state.activeId],
   );
 
   const activeMode = useMemo(
-    () => findMode(activeAgent.modeId),
-    [activeAgent.modeId],
+    () => findMode(activeChat.modeId),
+    [activeChat.modeId],
   );
 
-  const create = useCallback((modeId: string = DEFAULT_MODE_ID): Agent => {
-    const agent = createAgent(modeId);
-    setState((s) => ({ agents: [...s.agents, agent], activeId: agent.id }));
-    return agent;
+  const create = useCallback((modeId: string = DEFAULT_MODE_ID): Chat => {
+    const chat = createChat(modeId);
+    setState((s) => ({ chats: [...s.chats, chat], activeId: chat.id }));
+    return chat;
   }, []);
 
   const remove = useCallback((id: string) => {
     setState((s) => {
-      const remaining = s.agents.filter((a) => a.id !== id);
-      const list = remaining.length > 0 ? remaining : [createAgent()];
+      const remaining = s.chats.filter((c) => c.id !== id);
+      const list = remaining.length > 0 ? remaining : [createChat()];
       const activeId =
         s.activeId === id ? list[list.length - 1].id : s.activeId;
-      return { agents: list, activeId };
+      return { chats: list, activeId };
     });
   }, []);
 
@@ -79,14 +79,14 @@ export function useAgents(): UseAgentsResult {
   const rename = useCallback((id: string, name: string) => {
     setState((s) => ({
       ...s,
-      agents: s.agents.map((a) => (a.id === id ? { ...a, name } : a)),
+      chats: s.chats.map((c) => (c.id === id ? { ...c, name } : c)),
     }));
   }, []);
 
   const setMode = useCallback((id: string, modeId: string) => {
     setState((s) => ({
       ...s,
-      agents: s.agents.map((a) => (a.id === id ? { ...a, modeId } : a)),
+      chats: s.chats.map((c) => (c.id === id ? { ...c, modeId } : c)),
     }));
   }, []);
 
@@ -94,8 +94,8 @@ export function useAgents(): UseAgentsResult {
     (id: string, messages: ChatMessage[]) => {
       setState((s) => ({
         ...s,
-        agents: s.agents.map((a) =>
-          a.id === id ? { ...a, messages: [...a.messages, ...messages] } : a,
+        chats: s.chats.map((c) =>
+          c.id === id ? { ...c, messages: [...c.messages, ...messages] } : c,
         ),
       }));
     },
@@ -106,12 +106,12 @@ export function useAgents(): UseAgentsResult {
     (id: string, messageId: string, patch: Partial<ChatMessage>) => {
       setState((s) => ({
         ...s,
-        agents: s.agents.map((a) =>
-          a.id !== id
-            ? a
+        chats: s.chats.map((c) =>
+          c.id !== id
+            ? c
             : {
-                ...a,
-                messages: a.messages.map((m) =>
+                ...c,
+                messages: c.messages.map((m) =>
                   m.id === messageId ? { ...m, ...patch } : m,
                 ),
               },
@@ -124,13 +124,13 @@ export function useAgents(): UseAgentsResult {
   const clearMessages = useCallback((id: string) => {
     setState((s) => ({
       ...s,
-      agents: s.agents.map((a) =>
-        a.id === id ? { ...a, messages: [] } : a,
+      chats: s.chats.map((c) =>
+        c.id === id ? { ...c, messages: [] } : c,
       ),
     }));
   }, []);
 
-  const ops = useMemo<AgentOps>(
+  const ops = useMemo<ChatOps>(
     () => ({
       create,
       remove,
@@ -154,8 +154,8 @@ export function useAgents(): UseAgentsResult {
   );
 
   return {
-    agents: state.agents,
-    activeAgent,
+    chats: state.chats,
+    activeChat,
     activeMode,
     activeId: state.activeId,
     ops,

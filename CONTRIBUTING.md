@@ -1,6 +1,6 @@
 # Contributing to locala
 
-Thanks for taking a look. locala is an early proof of concept for a fully on-device, browser-native AI agent app built on top of [`web-ai-sdk`](https://github.com/obetomuniz/web-ai-sdk). Issues and PRs are welcome.
+Thanks for taking a look. locala is an early proof of concept for a fully on-device, browser-native AI chat app built on top of [`web-ai-sdk`](https://github.com/obetomuniz/web-ai-sdk). Issues and PRs are welcome.
 
 ## Setup
 
@@ -28,7 +28,7 @@ Both must pass.
 
 Good fits:
 
-- Bug fixes in the chat / agent management / WebMCP tool surface.
+- Bug fixes in the chat list / chat management / WebMCP tool surface.
 - Small, focused UX polish (animations, accessibility, keyboard navigation).
 - New persona modes that are genuinely distinct from the existing ones.
 - Improvements to the activity / workspace pane.

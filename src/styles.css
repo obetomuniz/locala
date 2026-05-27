@@ -388,7 +388,7 @@ code {
   padding: 0 6px;
 }
 
-.agent-list {
+.chat-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -397,7 +397,7 @@ code {
   padding-right: 2px;
 }
 
-.agent-row {
+.chat-row {
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
@@ -415,23 +415,23 @@ code {
   animation: fade-in var(--t-slow) var(--ease);
 }
 
-.agent-row:hover {
+.chat-row:hover {
   background: var(--bg-elev);
 }
 
-.agent-row.is-active {
+.chat-row.is-active {
   background: var(--bg-elev-2);
   box-shadow: var(--shadow-raised-sm);
 }
 
-.agent-row__top {
+.chat-row__top {
   display: flex;
   align-items: center;
   gap: 6px;
   justify-content: space-between;
 }
 
-.agent-row__name {
+.chat-row__name {
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -441,12 +441,12 @@ code {
   font-size: 13px;
 }
 
-.agent-row.is-active .agent-row__name {
+.chat-row.is-active .chat-row__name {
   color: var(--accent);
 }
 
-.agent-row__streaming,
-.agent-row__queued {
+.chat-row__streaming,
+.chat-row__queued {
   flex: 0 0 auto;
   width: 6px;
   height: 6px;
@@ -454,12 +454,12 @@ code {
   margin-right: 4px;
 }
 
-.agent-row__streaming {
+.chat-row__streaming {
   background: var(--accent);
   animation: stream-pulse 1.4s ease-in-out infinite;
 }
 
-.agent-row__queued {
+.chat-row__queued {
   /* Hollow ring; waiting in line for the model. */
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--text-dim);
@@ -488,7 +488,7 @@ code {
   }
 }
 
-.agent-row__delete {
+.chat-row__delete {
   opacity: 0;
   background: transparent;
   border: none;
@@ -507,17 +507,17 @@ code {
     color var(--t-fast) var(--ease);
 }
 
-.agent-row:hover .agent-row__delete,
-.agent-row:focus-within .agent-row__delete {
+.chat-row:hover .chat-row__delete,
+.chat-row:focus-within .chat-row__delete {
   opacity: 1;
 }
 
-.agent-row__delete:hover {
+.chat-row__delete:hover {
   background: rgba(217, 122, 134, 0.12);
   color: var(--danger);
 }
 
-.agent-row__meta {
+.chat-row__meta {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -537,7 +537,7 @@ code {
   font-weight: 500;
 }
 
-.agent-row.is-active .mode-pill {
+.chat-row.is-active .mode-pill {
   background: var(--bg-elev-3);
   color: var(--text);
 }
@@ -1589,7 +1589,7 @@ code {
   }
 
   .chat__header {
-    /* the topbar already shows agent name + mode on mobile, so we only keep
+    /* the topbar already shows chat name + mode on mobile, so we only keep
        the Clear action here. */
     padding: 8px 14px;
     justify-content: flex-end;
@@ -1667,7 +1667,7 @@ code {
 /* touch / no-hover devices ────────────────────────────────────────────────── */
 
 @media (hover: none) {
-  .agent-row__delete {
+  .chat-row__delete {
     opacity: 1;
     width: 32px;
     height: 32px;
