@@ -38,7 +38,7 @@ export const PRESETS: AgentPreset[] = [
     systemPrompt:
       "You are a friendly, terse assistant. Answer the user directly in markdown.",
     tools: [],
-    examples: ["Explain WebMCP in 3 bullet points."],
+    examples: ["Explain what React is in 3 bullet points."],
   },
   {
     id: "web-ai-suite",
