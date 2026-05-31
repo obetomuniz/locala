@@ -1683,3 +1683,18 @@ code {
     transition: none !important;
   }
 }
+
+/* experimental section in the workspace pane */
+.experimental-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+.experimental-link:hover {
+  text-decoration: underline;
+}
+.experimental-link__detail {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}

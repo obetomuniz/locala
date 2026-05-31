@@ -121,6 +121,32 @@ export function Workspace({
         </div>
 
         <div className="workspace__pane">
+          <div className="pane__title">Experimental</div>
+          <ul className="hints">
+            <li>
+              <a
+                className="experimental-link"
+                href="#experimental/agent"
+              >
+                Open Agent Playground →
+              </a>
+              <div className="muted experimental-link__detail">
+                Prototype of an on-device agent loop built on top of{" "}
+                <a
+                  href="https://web-ai-sdk.dev/"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  web-ai-sdk.dev
+                </a>
+                . Lives in
+                <code> src/experimental/</code>.
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div className="workspace__pane">
           <div className="pane__title">Hints</div>
           <ul className="hints">
             <li>

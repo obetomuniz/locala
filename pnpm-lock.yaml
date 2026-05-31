@@ -8,15 +8,21 @@ importers:
 
   .:
     dependencies:
+      '@web-ai-sdk/detector':
+        specifier: ^0.5.1
+        version: 0.5.1(react@18.3.1)
       '@web-ai-sdk/prompt':
-        specifier: ^0.4.0
-        version: 0.4.0(react@18.3.1)
+        specifier: ^0.5.2
+        version: 0.5.2(react@18.3.1)
       '@web-ai-sdk/summarizer':
-        specifier: ^0.4.0
-        version: 0.4.0(react@18.3.1)
+        specifier: ^0.5.1
+        version: 0.5.1(react@18.3.1)
+      '@web-ai-sdk/translator':
+        specifier: ^0.5.1
+        version: 0.5.1(react@18.3.1)
       '@web-ai-sdk/webmcp':
-        specifier: ^0.4.0
-        version: 0.4.0(react@18.3.1)
+        specifier: ^0.5.1
+        version: 0.5.1(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -485,24 +491,40 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
-  '@web-ai-sdk/prompt@0.4.0':
-    resolution: {integrity: sha512-XuIt1peO8cUcBH+3pcHDlwXpBVLndPsKNPDoTjCaDHTr4N3o9YuFf2gkJ8rhUywTwZ8GdKNRNY+8bN4Y4dOItg==}
+  '@web-ai-sdk/detector@0.5.1':
+    resolution: {integrity: sha512-nL6avkYW6wGUkue8fSFB6xJPrJVeslCvxwG1NowYgXSHw4qRjtjOdCrZRsy6TY2/hnUcB0r+eHlH0nsqG7o+qg==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@web-ai-sdk/summarizer@0.4.0':
-    resolution: {integrity: sha512-Z3F0S9Kfyu/W61ZDnjTyg6oqa0ZUnwO+ZVN345mUL6KvB4l1Asx2v+w6QRRZMzcwQJX/sJf09dQn/sv5JjrBCw==}
+  '@web-ai-sdk/prompt@0.5.2':
+    resolution: {integrity: sha512-tO/QmhH14NVKLCUIatzU2avWxyIONqdj+fQtto+Rb499FMiNjs6oGmTDW7qVBGXTolKPrl3XOsgAqwDumrCw5w==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@web-ai-sdk/webmcp@0.4.0':
-    resolution: {integrity: sha512-PjJv/lBLx8ZPYJNQ1jQG9z3T+fvyI91tW3q2883Qq4NbDQa8RiN22c3q+0kn2j1txgWQ5+D2lSLHOQrkz0qJ/g==}
+  '@web-ai-sdk/summarizer@0.5.1':
+    resolution: {integrity: sha512-nX/x6KaSsLa4Emi76mDzrUx2cv72SuMdXwelJBPFv5e8XEQa1X0MLvp660QowfLd5oYI55rnjSdvXzSMIlmolw==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+
+  '@web-ai-sdk/translator@0.5.1':
+    resolution: {integrity: sha512-5hqQ+UCYL5zDj/S/Yyd/NbGDSADJE/+T1Oe6mHQIzUdbEG5NeAJphp7JdYmtzrldj0gfYVbSmR5D8MGJ2oCZ5Q==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+
+  '@web-ai-sdk/webmcp@0.5.1':
+    resolution: {integrity: sha512-OX89OVPzVYHJEcsnyxugOsl1bTEqAYYHqakfQGojcCnHDqq2Vmo2nTd5gbGE2Iuyqh04+YWueVqfldzSoomR/w==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
@@ -1300,15 +1322,23 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@web-ai-sdk/prompt@0.4.0(react@18.3.1)':
+  '@web-ai-sdk/detector@0.5.1(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 
-  '@web-ai-sdk/summarizer@0.4.0(react@18.3.1)':
+  '@web-ai-sdk/prompt@0.5.2(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 
-  '@web-ai-sdk/webmcp@0.4.0(react@18.3.1)':
+  '@web-ai-sdk/summarizer@0.5.1(react@18.3.1)':
+    optionalDependencies:
+      react: 18.3.1
+
+  '@web-ai-sdk/translator@0.5.1(react@18.3.1)':
+    optionalDependencies:
+      react: 18.3.1
+
+  '@web-ai-sdk/webmcp@0.5.1(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 

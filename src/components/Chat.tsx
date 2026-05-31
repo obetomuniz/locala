@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Chat as ChatModel, Mode } from "../lib/chats";
 import type { ChatMessage } from "../lib/types";
+import { useStickToBottom } from "../lib/useStickToBottom";
 import { MessageContent } from "./MessageContent";
 import { ModeMenu } from "./ModeMenu";
 
@@ -30,9 +31,9 @@ export function Chat({
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages]);
+  // Stick to the bottom while streaming, but yield the moment the user
+  // scrolls up to read — and resume when they scroll back down.
+  useStickToBottom(scrollRef, [messages]);
 
   useEffect(() => {
     setDraft("");

@@ -5,3 +5,6 @@ dist
 .vite
 *.tsbuildinfo
 .pnpm-store
+
+# Local-only design notes / handoffs (kept out of the repo)
+.ideas/

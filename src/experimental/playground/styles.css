@@ -1,0 +1,1172 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Agent Playground · matches locala home (dark + subtle neumorphism)
+
+   All `--*` variables come from the host app's stylesheet
+   (`src/styles.css`). The playground purposely reuses them so the
+   experimental view feels like a continuation of locala rather than a
+   separate app. Classes stay prefixed with `.agentp__` for scoping.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.agentp {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  /* Matches locala's `.app` grid exactly: sidebar | main | workspace.
+     Main is wider than workspace so the transcript breathes. */
+  grid-template-columns: 244px minmax(0, 1.45fr) minmax(0, 1fr);
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Inter", "Segoe UI", Roboto,
+    sans-serif;
+  animation: agentp-in 240ms var(--ease);
+  overflow: hidden;
+}
+
+@keyframes agentp-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.agentp__chips {
+  display: flex;
+  gap: 6px;
+}
+
+.agentp__chip {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+  color: var(--text-dim);
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-raised-sm);
+  white-space: nowrap;
+}
+
+.agentp__chip--on {
+  color: var(--text);
+  background: var(--bg-elev-2);
+}
+
+.agentp__chip--off {
+  color: var(--text-faint);
+}
+
+.agentp__close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+  flex: 0 0 36px;
+  transition:
+    color var(--t-base) var(--ease),
+    background var(--t-base) var(--ease);
+}
+
+.agentp__close:hover,
+.agentp__close:focus-visible {
+  color: var(--text);
+  background: var(--bg-elev);
+  outline: none;
+}
+
+.agentp__close--mobile {
+  display: none;
+}
+
+/* Sidebar — mirrors locala `.sidebar` + `.sidebar__header` exactly */
+
+.agentp__sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  /* No top/bottom padding here — each column's header owns its top
+     padding so the three headers end at the same Y. */
+  padding: 0 12px;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agentp__sidebar-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 18px 6px 14px;
+  /* Locks all three column headers (sidebar / main / workspace) to the
+     same height so the col-rows that follow start at the exact same Y. */
+  min-height: 72px;
+  box-sizing: border-box;
+}
+
+.agentp__brand-stack {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.agentp__brand {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* "experimental" reads as a proper status flag, not body text. Warm
+   amber (`--warn`) flags "heads up, work in progress" without alarming
+   red. Same neumorphic pill shape as locala's `.chip` so it feels
+   native. */
+.agentp__brand-sub {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--warn);
+  background: var(--bg-elev);
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-raised-sm);
+  white-space: nowrap;
+}
+
+.agentp__sidebar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  padding-right: 2px;
+  flex: 1;
+}
+
+/* Shared "first-row" pattern: each column has a column-header (brand /
+   title / "Workspace") followed by a single `agentp__col-row` that
+   contains the column's first label. By keeping the column-header
+   `min-height` consistent and the col-row padding identical, the three
+   labels (PRESET / Transcript / chips) end up at the same Y position
+   regardless of which column they're in. */
+
+.agentp__col-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+  padding: 0 6px;
+}
+
+.agentp__col-row-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+}
+
+.agentp__section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  padding: 0 6px 6px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+}
+
+/* Presets list — mirrors `.chat-row` selection states */
+
+.agentp__presets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agentp__preset {
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease);
+}
+
+.agentp__preset:hover {
+  background: var(--bg-elev);
+}
+
+.agentp__preset--active {
+  background: var(--bg-elev-2);
+  box-shadow: var(--shadow-raised-sm);
+}
+
+.agentp__preset-name {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.agentp__preset--active .agentp__preset-name {
+  color: var(--accent);
+}
+
+.agentp__preset-desc {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+/* Tool list (sidebar) — neumorphic cards, matches `.workspace__pane` feel */
+
+.agentp__tools {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agentp__tool {
+  background: var(--bg-elev);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-raised-sm);
+}
+
+.agentp__tool-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.agentp__tool-name {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.agentp__tool-tag {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  box-shadow: var(--shadow-raised-sm);
+}
+
+.agentp__tool-tag--destructive {
+  color: var(--danger);
+}
+
+.agentp__tool-desc {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* System prompt block */
+
+.agentp__system {
+  margin: 0;
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-elev);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  box-shadow: var(--shadow-raised-sm);
+}
+
+/* Main column — header + panels + composer, mirrors `.chat` */
+
+.agentp__main {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agentp__main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  min-height: 72px;
+  box-sizing: border-box;
+  gap: 12px;
+}
+
+.agentp__title-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.agentp__title {
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentp__subtitle {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 1px;
+}
+
+.agentp__new-session {
+  flex: 0 0 auto;
+  background: var(--bg-elev);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  box-shadow: var(--shadow-raised-sm);
+  transition:
+    color var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+
+.agentp__new-session:hover:not(:disabled) {
+  color: var(--text);
+  box-shadow: var(--shadow-raised);
+}
+
+.agentp__new-session:active:not(:disabled) {
+  transform: translateY(0.5px);
+  box-shadow: var(--shadow-pressed);
+}
+
+.agentp__new-session:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.agentp__main-body {
+  flex: 1;
+  display: grid;
+  /* col-row · transcript · composer */
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  gap: 10px;
+  padding: 0 22px 20px;
+}
+
+/* Indent the main col-row to align with locala chat-header content
+   (22px), matching the sidebar's 18px (12 padding + 6 inset) and the
+   workspace's 20px. Each column's first label sits at the same Y. */
+.agentp__main-body > .agentp__col-row {
+  padding: 0;
+}
+
+/* Workspace column — mirrors locala `.workspace*` */
+
+.agentp__workspace {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agentp__workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  min-height: 72px;
+  box-sizing: border-box;
+  gap: 8px;
+}
+
+.agentp__workspace-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.agentp__workspace-count {
+  font-weight: 400;
+  font-size: 12px;
+  margin-left: 6px;
+  color: var(--text-dim);
+}
+
+.agentp__workspace-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 18px 20px;
+}
+
+/* Chips ride in the workspace's col-row at the shared label Y. */
+.agentp__workspace-body > .agentp__col-row {
+  padding: 0;
+  justify-content: flex-end;
+}
+
+.agentp__workspace-pane {
+  background: var(--bg-elev);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-raised);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.agentp__pane-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agentp__pane-meta {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+/* Hints list — same density as locala `.hints`. Inline `code` is kept
+   deliberately quiet (no border, no chunky padding, relative font-size)
+   so chips don't visibly bump the line rhythm — common pitfall when
+   mono lives inside body text. */
+
+.agentp__hints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+.agentp__hints li {
+  padding-left: 14px;
+  position: relative;
+}
+
+.agentp__hints li::before {
+  content: "·";
+  position: absolute;
+  left: 4px;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.agentp__hints strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.agentp__hints code {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--bg-elev-2);
+  border: none;
+  border-radius: 3px;
+  padding: 0 4px;
+  color: var(--text);
+  /* Vertically align the inline mono so it sits on the same baseline
+     as surrounding sans body text. Prevents the "chip bump" effect. */
+  vertical-align: baseline;
+}
+
+.agentp__panel {
+  background: var(--bg-elev);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-raised);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Transcript has no parent card/window of its own — the step and answer
+   cards inside stand alone, so the outer box was just visual noise. Keep
+   only the flex/scroll layout from `.agentp__panel`. */
+.agentp__panel--transcript {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.agentp__panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+}
+
+.agentp__status {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.agentp__answer {
+  flex: 1;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.agentp__empty {
+  color: var(--text-dim);
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.55;
+  padding: 4px 0;
+}
+
+.agentp__banner {
+  background: var(--bg-elev);
+  border-left: 2px solid var(--warn);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  box-shadow: var(--shadow-raised-sm);
+  margin-bottom: 10px;
+}
+
+.agentp__banner--error {
+  border-left-color: var(--danger);
+  color: var(--text);
+}
+
+/* Transcript: a boxless activity feed (à la Claude Code) — thinking +
+   tool actions per turn, then the answer. No per-turn card chrome. */
+
+.agentp__transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* A "turn" groups the model's thinking + the tools it called that turn.
+   Boxless: it carries no background or padding of its own. */
+.agentp__turn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: msg-in 220ms var(--ease);
+}
+
+/* The final answer — also boxless, flows directly in the transcript. */
+.agentp__answer-block {
+  animation: msg-in 220ms var(--ease);
+}
+
+.agentp__answer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.agentp__answer-label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* "Thinking…" indicator shown while the model is generating but nothing
+   else is animating — fills the gap after tools finish and before the
+   answer's first token streams in. */
+.agentp__working {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-muted);
+  animation: msg-in 220ms var(--ease);
+}
+
+.agentp__working-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.agentp__working-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  animation: agentp-pulse 1.2s ease-in-out infinite;
+}
+
+.agentp__working-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.agentp__working-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes agentp-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+
+/* Blinking caret while the thought streams token-by-token. */
+.agentp__thought-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--text-muted);
+  animation: agentp-caret 1s steps(2) infinite;
+}
+
+@keyframes agentp-caret {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.agentp__tool-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agentp__tool-card {
+  background: var(--bg-elev);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  box-shadow: var(--shadow-raised-sm);
+  transition: box-shadow var(--t-base) var(--ease);
+}
+
+.agentp__tool-card--calling {
+  box-shadow: var(--shadow-focus);
+}
+
+.agentp__tool-card--error {
+  border-left: 2px solid var(--danger);
+}
+
+.agentp__tool-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.agentp__tool-card-name {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.agentp__tool-card-status {
+  font-size: 10.5px;
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  color: var(--text-dim);
+}
+
+.agentp__tool-card-status--calling {
+  color: var(--text);
+}
+
+.agentp__tool-card-status--ok {
+  color: var(--ok);
+}
+
+.agentp__tool-card-status--error {
+  color: var(--danger);
+}
+
+.agentp__tool-progress {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.agentp__tool-progress-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.agentp__tool-progress-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.6;
+  flex: 0 0 4px;
+}
+
+.agentp__tool-card-details {
+  margin-top: 4px;
+}
+
+.agentp__tool-card-summary {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  list-style: none;
+  padding: 3px 0;
+  transition: color var(--t-fast) var(--ease);
+}
+
+.agentp__tool-card-summary:hover {
+  color: var(--text-muted);
+}
+
+.agentp__tool-card-summary::-webkit-details-marker {
+  display: none;
+}
+
+.agentp__tool-card-summary::before {
+  content: "▸ ";
+  display: inline-block;
+  color: var(--text-faint);
+  transition: transform 0.15s ease;
+}
+
+.agentp__tool-card-details[open] > .agentp__tool-card-summary::before {
+  content: "▾ ";
+}
+
+.agentp__tool-card-json {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  color: var(--text-muted);
+  overflow: auto;
+  max-height: 220px;
+  white-space: pre;
+}
+
+/* Markdown-rendered answer */
+
+.agentp__answer-md {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.agentp__answer-md .md {
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Inter", "Segoe UI", Roboto,
+    sans-serif;
+}
+
+.agentp__answer-md p {
+  margin: 0 0 8px;
+}
+
+.agentp__answer-md p:last-child {
+  margin-bottom: 0;
+}
+
+.agentp__answer-md pre {
+  background: var(--bg);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  overflow: auto;
+  margin: 6px 0;
+}
+
+.agentp__answer-md code {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+}
+
+.agentp__answer-md .md-inline-code {
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.agentp__answer-placeholder {
+  margin: 0;
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.agentp__stop {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  padding: 6px 2px 0;
+}
+
+/* Event log — compact mono, matches `.activity` density */
+
+.agentp__log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow: auto;
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 11.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.agentp__log-item {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: background var(--t-fast) var(--ease);
+  animation: fade-in 200ms var(--ease);
+}
+
+.agentp__log-item:hover {
+  background: var(--bg-elev-2);
+}
+
+.agentp__log-kind {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  padding-top: 2px;
+}
+
+.agentp__log-body {
+  word-break: break-word;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+}
+
+.agentp__log-item--plan .agentp__log-kind { color: var(--warn); }
+.agentp__log-item--tool_call .agentp__log-kind { color: var(--text); }
+.agentp__log-item--tool_result .agentp__log-kind { color: var(--ok); }
+.agentp__log-item--tool_progress .agentp__log-kind { color: var(--text-muted); }
+.agentp__log-item--thought .agentp__log-kind { color: var(--text-muted); }
+.agentp__log-item--message .agentp__log-kind { color: var(--accent); }
+.agentp__log-item--done .agentp__log-kind { color: var(--text); }
+
+/* Composer — same shape as locala's `.composer` */
+
+.agentp__composer {
+  background: var(--bg-elev);
+  border-radius: var(--radius);
+  padding: 10px 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-raised);
+  transition: box-shadow var(--t-base) var(--ease);
+}
+
+.agentp__composer:focus-within {
+  box-shadow: var(--shadow-focus);
+}
+
+.agentp__input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 64px;
+  padding: 4px 2px;
+}
+
+.agentp__input::placeholder {
+  color: var(--text-faint);
+}
+
+.agentp__input:disabled {
+  cursor: not-allowed;
+}
+
+.agentp__composer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agentp__examples {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.agentp__example {
+  font-size: 11px;
+  background: var(--bg-elev-2);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: var(--shadow-raised-sm);
+  transition:
+    color var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+
+.agentp__example:hover:not(:disabled) {
+  color: var(--text);
+  box-shadow: var(--shadow-raised);
+}
+
+.agentp__example:active:not(:disabled) {
+  transform: translateY(0.5px);
+  box-shadow: var(--shadow-pressed);
+}
+
+.agentp__example:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.agentp__example--regenerate {
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.agentp__example--regenerate:hover:not(:disabled) {
+  color: var(--text-muted);
+  background: var(--bg-elev-2);
+  box-shadow: var(--shadow-raised-sm);
+}
+
+.agentp__example--regenerate:disabled {
+  /* keep the spinner-like label visible while generating */
+  opacity: 0.7;
+}
+
+.agentp__composer-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Buttons reuse locala's `.primary-btn` / `.ghost-btn` shapes */
+
+.agentp__btn {
+  font: inherit;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow-raised-sm);
+  cursor: pointer;
+  transition:
+    box-shadow var(--t-base) var(--ease),
+    transform var(--t-fast) var(--ease),
+    background var(--t-base) var(--ease),
+    color var(--t-base) var(--ease);
+}
+
+.agentp__btn--send {
+  background: var(--accent);
+  color: #0a0b0e;
+}
+
+.agentp__btn--send:hover:not(:disabled) {
+  background: #ffffff;
+  box-shadow: var(--shadow-raised);
+}
+
+.agentp__btn--send:active:not(:disabled) {
+  transform: translateY(0.5px);
+  box-shadow: var(--shadow-pressed);
+}
+
+.agentp__btn--send:disabled {
+  background: var(--bg-elev-3);
+  color: var(--text-faint);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.agentp__btn--stop {
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+
+.agentp__btn--stop:hover {
+  background: var(--bg-elev-3);
+  box-shadow: var(--shadow-raised);
+}
+
+.agentp__btn--stop:active {
+  transform: translateY(0.5px);
+  box-shadow: var(--shadow-pressed);
+}
+
+/* Responsive — drop the workspace column under 1180px (two-column
+   mode); stack everything vertically under 860px (mobile). When the
+   workspace hides, the close button hides with it, so the sidebar's
+   mobile close button takes over to keep dismissal always reachable. */
+
+@media (max-width: 1180px) {
+  .agentp {
+    grid-template-columns: 244px minmax(0, 1fr);
+  }
+  .agentp__workspace {
+    display: none;
+  }
+  .agentp__close--mobile {
+    display: flex;
+  }
+}
+
+@media (max-width: 860px) {
+  .agentp {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .agentp__sidebar {
+    max-height: 38vh;
+    padding: 0 14px;
+  }
+  .agentp__sidebar-header {
+    padding: 14px 6px 10px;
+    min-height: 0;
+  }
+  .agentp__sidebar-body {
+    overflow-y: auto;
+  }
+  .agentp__main-header {
+    padding: 14px 16px 8px;
+    min-height: 0;
+  }
+  .agentp__main-body {
+    padding: 0 16px 14px;
+  }
+}
