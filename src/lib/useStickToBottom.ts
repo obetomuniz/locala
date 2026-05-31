@@ -7,64 +7,148 @@
  * yanking them down on every token.
  *
  * Pass the streaming value(s) in `deps` (e.g. `[messages]`, or
- * `[text, events.length]`) so a scroll-to-bottom is attempted on each
- * update. The bottom write is a cheap `scrollTop = scrollHeight` that the
- * browser batches with paint, so dense token streams stay smooth.
+ * `[text, events.length]`) so the view re-pins on each update. The pin runs
+ * in a layout effect (`scrollTop = scrollHeight` before the browser paints),
+ * so the grown content lands at the bottom in the same frame — no flicker,
+ * no intermediate paint at the old position.
+ *
+ * Returns `{ isPinned, scrollToBottom }` so any consumer can reflect the
+ * follow state (e.g. show a "jump to latest" pill) and re-pin imperatively.
+ * Native APIs only (scroll/wheel/key/touch events + `scrollTo`); reuse it
+ * anywhere a container should follow appended content.
  */
 
-import { useEffect, useRef, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 const NEAR_BOTTOM_PX = 80;
 
+export interface StickToBottom {
+  /** True while the view follows the bottom; false once the user scrolls up. */
+  isPinned: boolean;
+  /** Re-pin and scroll to the latest content (smooth by default). */
+  scrollToBottom: (behavior?: ScrollBehavior) => void;
+}
+
 export function useStickToBottom<T extends HTMLElement>(
   ref: RefObject<T | null>,
-  deps: ReadonlyArray<unknown>,
+  deps: ReadonlyArray<unknown> = [],
   nearBottomPx: number = NEAR_BOTTOM_PX,
-): void {
-  // Default to "stuck" so the first content lands at the bottom even
-  // before the user has scrolled at all.
-  const stuckRef = useRef(true);
+): StickToBottom {
+  // `pinnedRef` is the source of truth read by the synchronous pin path
+  // (no stale closures). `isPinned` mirrors it for rendering. Default to
+  // "pinned" so the first content lands at the bottom before any scroll.
+  const pinnedRef = useRef(true);
+  const [isPinned, setIsPinned] = useState(true);
+
+  const setPinned = useCallback((next: boolean) => {
+    pinnedRef.current = next;
+    setIsPinned((prev) => (prev === next ? prev : next));
+  }, []);
+
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      const el = ref.current;
+      if (!el) return;
+      setPinned(true);
+      el.scrollTo({ top: el.scrollHeight, behavior });
+    },
+    [ref, setPinned],
+  );
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    // Re-derive stickiness from the scroll position: stuck only when the
-    // viewport bottom is within `nearBottomPx` of the content bottom. This
-    // is what RE-ENABLES autoscroll when the user scrolls back down.
-    const recompute = () => {
-      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-      stuckRef.current = dist <= nearBottomPx;
-    };
+    // Only a container with meaningful overflow can be "scrolled away from
+    // the bottom". When content fits, there's nothing to follow and nothing
+    // to jump back to — stay pinned so no "jump to latest" affordance shows.
+    const canScroll = () => el.scrollHeight - el.clientHeight > nearBottomPx;
 
-    // Upward user intent unsticks IMMEDIATELY, so a programmatic
-    // scroll-to-bottom triggered by the next streamed token can't yank the
-    // user back down while they're reading. Without this, a fast stream can
-    // win the race against the passive scroll handler and feel like the
-    // view "won't let you scroll up".
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY < 0) stuckRef.current = false;
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowUp" || e.key === "PageUp" || e.key === "Home") {
-        stuckRef.current = false;
+    let lastTop = el.scrollTop;
+    let lastHeight = el.scrollHeight;
+
+    const onScroll = () => {
+      const top = el.scrollTop;
+      const height = el.scrollHeight;
+      const movedUp = top < lastTop;
+      // A shrinking container (collapsed tool card, reset) clamps scrollTop
+      // downward without any user gesture — that's not an intent to leave
+      // the bottom, so ignore the delta when the height changed.
+      const heightChanged = height !== lastHeight;
+      lastTop = top;
+      lastHeight = height;
+
+      if (!canScroll()) {
+        setPinned(true);
+        return;
+      }
+      const dist = height - top - el.clientHeight;
+      if (movedUp && !heightChanged) {
+        // User scrolled up (wheel, drag, keys, touch) — yield immediately,
+        // even inside the bottom zone, so scrolling up stays smooth instead
+        // of being yanked back by the next streamed token.
+        setPinned(false);
+      } else if (dist <= nearBottomPx) {
+        // Scrolled back to the bottom — resume following new content.
+        setPinned(true);
       }
     };
 
-    el.addEventListener("scroll", recompute, { passive: true });
+    // Wheel / touch / keyboard give us the user's upward intent a beat before
+    // the scroll event lands, so a programmatic pin from the next streamed
+    // token can't win the race and pull them back down mid-read. Guard on
+    // `canScroll` so a stray gesture over a short, non-scrollable view never
+    // strands the "jump to latest" button.
+    const intentUp = () => {
+      if (canScroll()) setPinned(false);
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0) intentUp();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowUp" || e.key === "PageUp" || e.key === "Home") {
+        intentUp();
+      }
+    };
+    let lastTouchY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      lastTouchY = e.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? 0;
+      if (y > lastTouchY + 2) intentUp();
+      lastTouchY = y;
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("wheel", onWheel, { passive: true });
     el.addEventListener("keydown", onKeyDown);
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
     return () => {
-      el.removeEventListener("scroll", recompute);
+      el.removeEventListener("scroll", onScroll);
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("keydown", onKeyDown);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
     };
-  }, [ref, nearBottomPx]);
+  }, [ref, nearBottomPx, setPinned]);
 
-  useEffect(() => {
+  // Pin on each content update before paint, so new content shows at the
+  // bottom in the same frame it's committed.
+  useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || !stuckRef.current) return;
+    if (!el || !pinnedRef.current) return;
     el.scrollTop = el.scrollHeight;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
+
+  return { isPinned, scrollToBottom };
 }

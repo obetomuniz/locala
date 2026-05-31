@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { isAvailable as isPromptAvailable } from "@web-ai-sdk/prompt";
 import { isAvailable as isWebMCPAvailable } from "@web-ai-sdk/webmcp";
 import { isAvailable as isSummarizerAvailable } from "@web-ai-sdk/summarizer";
@@ -19,6 +19,7 @@ const DEFAULT_PRESET_ID = "platform";
 
 export function AgentPlayground({ onClose }: Props) {
   const [presetId, setPresetId] = useState(DEFAULT_PRESET_ID);
+  const [infoTab, setInfoTab] = useState<"experiment" | "hints">("hints");
   const preset = useMemo(
     () => PRESETS.find((p) => p.id === presetId) ?? PRESETS[0],
     [presetId],
@@ -60,30 +61,15 @@ export function AgentPlayground({ onClose }: Props) {
     canRegenerate: canRegenerateExamples,
   } = useExamples(preset);
 
-  const [draft, setDraft] = useState(preset.examples[0] ?? "");
+  const [draft, setDraft] = useState("");
 
   // Transcript and event log both autoscroll while the user is near
   // the bottom; yield as soon as they scroll up to inspect, resume on
   // scroll-back. `text + events.length` covers both streamed deltas
   // and structured event arrivals.
   const transcriptRef = useRef<HTMLDivElement>(null);
-  useAutoscroll(transcriptRef, [text, events.length, liveThought?.text]);
-
-  // Chrome's `promptStreaming` honours abort signals at chunk boundaries,
-  // so abort propagation can lag ~100-500ms. Tracking a local "stopping"
-  // state gives the Stop button immediate visual feedback (label flips to
-  // "Stopping…", click disabled) instead of silently sitting there while
-  // the user wonders if their click registered.
-  const [stopping, setStopping] = useState(false);
-  useEffect(() => {
-    if (status !== "planning" && status !== "tool_calling" && status !== "streaming") {
-      setStopping(false);
-    }
-  }, [status]);
-  const handleStop = () => {
-    setStopping(true);
-    abort();
-  };
+  const { isPinned: transcriptPinned, scrollToBottom: scrollTranscript } =
+    useAutoscroll(transcriptRef, [text, events.length, liveThought?.text]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -91,6 +77,7 @@ export function AgentPlayground({ onClose }: Props) {
       return;
     if (!draft.trim()) return;
     void run(draft.trim());
+    setDraft("");
   };
 
   const busy =
@@ -134,7 +121,7 @@ export function AgentPlayground({ onClose }: Props) {
                   onClick={() => {
                     setPresetId(p.id);
                     reset();
-                    setDraft(p.examples[0] ?? "");
+                    setDraft("");
                   }}
                 >
                   <span className="agentp__preset-name">{p.name}</span>
@@ -205,6 +192,16 @@ export function AgentPlayground({ onClose }: Props) {
                 </div>
               )}
             </div>
+            {!transcriptPinned && (
+              <button
+                type="button"
+                className="agentp__jump"
+                onClick={() => scrollTranscript()}
+                aria-label="Scroll to latest"
+              >
+                <span aria-hidden="true">↓</span> Latest
+              </button>
+            )}
           </section>
 
           <form className="agentp__composer" onSubmit={submit}>
@@ -263,10 +260,9 @@ export function AgentPlayground({ onClose }: Props) {
                   <button
                     type="button"
                     className="agentp__btn agentp__btn--stop"
-                    onClick={handleStop}
-                    disabled={stopping}
+                    onClick={abort}
                   >
-                    {stopping ? "Stopping…" : "Stop"}
+                    Stop
                   </button>
                 ) : (
                   <button
@@ -318,7 +314,59 @@ export function AgentPlayground({ onClose }: Props) {
             <EventLog events={events} />
           </div>
           <div className="agentp__workspace-pane">
-            <div className="agentp__pane-title">Hints</div>
+            <div className="agentp__pane-title agentp__pane-tabs">
+              <button
+                type="button"
+                className={`agentp__pane-tab${
+                  infoTab === "hints" ? " agentp__pane-tab--active" : ""
+                }`}
+                onClick={() => setInfoTab("hints")}
+              >
+                Hints
+              </button>
+              <button
+                type="button"
+                className={`agentp__pane-tab${
+                  infoTab === "experiment" ? " agentp__pane-tab--active" : ""
+                }`}
+                onClick={() => setInfoTab("experiment")}
+              >
+                The Experiment
+              </button>
+            </div>
+            {infoTab === "experiment" ? (
+              <div className="agentp__about">
+                <p>
+                  A hands-on probe of how far the browser's{" "}
+                  <strong>Built-in AI</strong> can go toward a real{" "}
+                  <strong>agent</strong>: not one-shot prompts, but a full
+                  loop (<em>plan, call tools, read results, answer</em>).
+                </p>
+                <p>
+                  Everything runs <strong>on-device</strong> via Chrome's
+                  Prompt API (Gemini Nano); nothing leaves the browser. The
+                  agent <strong>composes the whole Built-in AI suite</strong>{" "}
+                  as tools (Summarizer, Translator, Language Detector), plus
+                  web-platform tools (HTTP fetch, clock, clipboard), through{" "}
+                  <code>@web-ai-sdk</code>.
+                </p>
+                <p>
+                  It uses the Prompt API's{" "}
+                  <strong>native tool calling</strong>: tools are handed to
+                  the model, which emits <code>tool_code</code> calls that the
+                  loop parses and dispatches. That's the shape the model is
+                  trained on, not a JSON protocol bolted on top.
+                </p>
+                <p>
+                  The goal is to{" "}
+                  <strong>map the platform's real capabilities and limits</strong>{" "}
+                  for agent workloads (small context window, non-deterministic
+                  tool use, CORS, a single on-device model), and to surface
+                  what the SDK (and a future <code>web-ai-kit</code>) needs to
+                  make on-device agents dependable.
+                </p>
+              </div>
+            ) : (
             <ul className="agentp__hints">
               <li>
                 The <strong>Transcript</strong> shows thoughts, tool calls
@@ -359,6 +407,7 @@ export function AgentPlayground({ onClose }: Props) {
                 slow under heavy use.
               </li>
             </ul>
+            )}
           </div>
         </div>
       </section>

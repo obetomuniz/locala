@@ -110,6 +110,12 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
   const [error, setError] = useState<Error | null>(null);
 
   const runningRef = useRef(false);
+  // Set the moment the user hits Stop. The run loop checks it on every
+  // event and breaks immediately, so the transcript freezes at the current
+  // partial output instead of waiting for Chrome's AbortSignal to land
+  // (it's honored only at chunk boundaries, and short generations / tool
+  // calls often finish first — which made Stop look like a no-op).
+  const abortedRef = useRef(false);
 
   const reset = useCallback(() => {
     setStatus(promptAvailable ? "idle" : "unavailable");
@@ -122,7 +128,19 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
   }, [promptAvailable]);
 
   const abort = useCallback(() => {
+    if (!runningRef.current) return;
+    // True STOP, not a reset: freeze the UI on the partial output right
+    // now and tear down the model session, rather than waiting for the
+    // Prompt API to honor the signal at the next chunk boundary. We flip
+    // to the aborted state synchronously; the run loop sees `abortedRef`
+    // and breaks, running the generator's `finally` (which destroys the
+    // cloned session and stops generation).
+    abortedRef.current = true;
     agentRef.current?.abort();
+    runningRef.current = false;
+    setLiveThought(null);
+    setStopReason("aborted");
+    setStatus("aborted");
   }, []);
 
   // Clear the agent's conversation session AND the UI state, so the next
@@ -157,6 +175,7 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
       if (runningRef.current) agentRef.current.abort();
 
       runningRef.current = true;
+      abortedRef.current = false;
       setStatus("planning");
       setText("");
       setLiveThought(null);
@@ -172,6 +191,12 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
 
       try {
         for await (const ev of stream) {
+          // User hit Stop: stop applying any further streamed updates so
+          // the transcript freezes exactly where it is. Breaking the loop
+          // calls the stream's `return()`, which runs the generator's
+          // `finally` and destroys the model session (stopping generation).
+          if (abortedRef.current) break;
+
           // `plan_delta` and `text_delta` arrive at token frequency
           // (often 50-200 per step). Pushing them through React state
           // produces hundreds of renders that the UI never displays —

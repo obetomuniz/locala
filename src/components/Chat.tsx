@@ -33,7 +33,7 @@ export function Chat({
 
   // Stick to the bottom while streaming, but yield the moment the user
   // scrolls up to read — and resume when they scroll back down.
-  useStickToBottom(scrollRef, [messages]);
+  const { isPinned, scrollToBottom } = useStickToBottom(scrollRef, [messages]);
 
   useEffect(() => {
     setDraft("");
@@ -65,37 +65,49 @@ export function Chat({
         </div>
       </header>
 
-      <div ref={scrollRef} className="chat__messages">
-        {messages.length === 0 && !unavailable && (
-          <div className="chat__empty">
-            Start a conversation. Pick a mode below to set the tone.
-          </div>
-        )}
-        {unavailable && (
-          <div className="banner">
-            <strong>Prompt API not available.</strong>
-            <p>
-              This PoC runs on Chrome 138+ or Edge 138+. Enable the flag at{" "}
-              <code>chrome://flags/#prompt-api-for-gemini-nano</code> (or{" "}
-              <code>edge://flags/#prompt-api-for-phi-mini</code>) and reload.
-            </p>
-          </div>
-        )}
-        {messages.map((m) => (
-          <article key={m.id} className={`msg msg--${m.role}`}>
-            <div className="msg__role">
-              {m.role === "user" ? "You" : mode.name}
+      <div className="chat__scroll">
+        <div ref={scrollRef} className="chat__messages">
+          {messages.length === 0 && !unavailable && (
+            <div className="chat__empty">
+              Start a conversation. Pick a mode below to set the tone.
             </div>
-            <div className="msg__content">
-              <MessageContent content={m.content} streaming={m.streaming} />
+          )}
+          {unavailable && (
+            <div className="banner">
+              <strong>Prompt API not available.</strong>
+              <p>
+                This PoC runs on Chrome 138+ or Edge 138+. Enable the flag at{" "}
+                <code>chrome://flags/#prompt-api-for-gemini-nano</code> (or{" "}
+                <code>edge://flags/#prompt-api-for-phi-mini</code>) and reload.
+              </p>
             </div>
-          </article>
-        ))}
-        {error && (
-          <div className="banner banner--error">
-            <strong>Error.</strong>
-            <p>{error}</p>
-          </div>
+          )}
+          {messages.map((m) => (
+            <article key={m.id} className={`msg msg--${m.role}`}>
+              <div className="msg__role">
+                {m.role === "user" ? "You" : mode.name}
+              </div>
+              <div className="msg__content">
+                <MessageContent content={m.content} streaming={m.streaming} />
+              </div>
+            </article>
+          ))}
+          {error && (
+            <div className="banner banner--error">
+              <strong>Error.</strong>
+              <p>{error}</p>
+            </div>
+          )}
+        </div>
+        {!isPinned && messages.length > 0 && (
+          <button
+            type="button"
+            className="jump-to-latest"
+            onClick={() => scrollToBottom()}
+            aria-label="Scroll to latest message"
+          >
+            <span aria-hidden="true">↓</span> Latest
+          </button>
         )}
       </div>
 
