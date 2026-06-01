@@ -962,6 +962,56 @@
   white-space: pre;
 }
 
+/* Alternate compact tool renderer. */
+.agentp__tool-item {
+  background: var(--bg-elev);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  box-shadow: var(--shadow-raised-sm);
+}
+
+.agentp__tool-item--calling {
+  box-shadow: var(--shadow-focus);
+}
+
+.agentp__tool-item--error {
+  border-left: 2px solid var(--danger);
+}
+
+.agentp__tool-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agentp__tool-item-name {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.agentp__tool-item-status {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.agentp__tool-item-body {
+  margin-top: 4px;
+}
+
+.agentp__tool-item-body code {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Markdown-rendered answer */
 
 .agentp__answer-md {
@@ -993,6 +1043,35 @@
 }
 
 .agentp__answer-md code {
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+}
+
+/* Streamdown transcript mode uses its own markdown renderer. */
+.agentp__streamdown {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.agentp__streamdown p {
+  margin: 0 0 8px;
+}
+
+.agentp__streamdown p:last-child {
+  margin-bottom: 0;
+}
+
+.agentp__streamdown pre {
+  background: var(--bg);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  overflow: auto;
+  margin: 6px 0;
+}
+
+.agentp__streamdown code {
   font-family:
     ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
   font-size: 12px;

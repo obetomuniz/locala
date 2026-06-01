@@ -780,6 +780,39 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* Cheap streaming mode: avoid markdown reparsing on every token. */
+.md--stream-plain {
+  white-space: pre-wrap;
+  opacity: 0;
+  transform: translateY(2px);
+  animation: md-stream-fade-in 200ms var(--ease) forwards;
+}
+
+/* When streaming settles, fade into the fully-rendered markdown shape. */
+.md--stream-final {
+  animation: md-stream-finalize 180ms var(--ease);
+}
+
+@keyframes md-stream-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes md-stream-finalize {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .md > *:first-child {
   margin-top: 0;
 }

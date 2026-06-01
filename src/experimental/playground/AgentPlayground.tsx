@@ -185,6 +185,8 @@ export function AgentPlayground({ onClose }: Props) {
                 liveThought={liveThought}
                 stopReason={stopReason}
                 busy={busy}
+                transcriptRendererId={preset.transcriptRendererId}
+                toolRendererId={preset.toolRendererId}
               />
               {error && (
                 <div className="agentp__banner agentp__banner--error">

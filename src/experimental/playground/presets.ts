@@ -14,6 +14,8 @@ import {
   createFetchUrlTool,
 } from "../agent/tools";
 import type { AgentTool } from "../agent/types";
+import type { TranscriptRendererId } from "./transcriptRenderers";
+import type { ToolRendererId } from "./toolRenderers";
 
 export interface AgentPreset {
   id: string;
@@ -22,12 +24,23 @@ export interface AgentPreset {
   systemPrompt: string;
   tools: AgentTool[];
   examples: string[];
+  transcriptRendererId?: TranscriptRendererId;
+  toolRendererId?: ToolRendererId;
 }
 
 // Generous raw cap so full blog/article HTML is captured before the
 // tool extracts clean reading text (the article body often sits past
 // the first tens of KB of head / nav / inline CSS).
 const fetchUrl = createFetchUrlTool();
+const platformTools = [
+  fetchUrl,
+  clockNowTool,
+  clipboardReadTool,
+  clipboardWriteTool,
+  summarizeTool,
+];
+const platformPrompt =
+  "You are a research and productivity assistant. For ANY URL the user provides, you MUST call `fetch_url` first — you do not know what is on a page without fetching it. If the fetch fails (often CORS), say so explicitly; never invent or guess the page contents. Fetch is read-only and capped to 32 KB; clipboard tools require user permission.";
 
 export const PRESETS: AgentPreset[] = [
   {
@@ -59,18 +72,26 @@ export const PRESETS: AgentPreset[] = [
     name: "Platform reach",
     description:
       "Adds general-purpose web platform tools: HTTP fetch (JSON parsed, HTML reduced to clean article text), clock, and clipboard read/write.",
-    systemPrompt:
-      "You are a research and productivity assistant. For ANY URL the user provides, you MUST call `fetch_url` first — you do not know what is on a page without fetching it. If the fetch fails (often CORS), say so explicitly; never invent or guess the page contents. Fetch is read-only and capped to 32 KB; clipboard tools require user permission.",
-    tools: [
-      fetchUrl,
-      clockNowTool,
-      clipboardReadTool,
-      clipboardWriteTool,
-      summarizeTool,
-    ],
+    systemPrompt: platformPrompt,
+    tools: platformTools,
     examples: [
       "Fetch https://api.github.com/repos/obetomuniz/web-ai-sdk and tell me how many stars it has.",
       "What time is it in Tokyo right now?",
+    ],
+  },
+  {
+    id: "platform-streamdown",
+    name: "Platform + Streamdown",
+    description:
+      "Same tools as Platform reach, but transcript rendering uses Streamdown as an external integration.",
+    systemPrompt: platformPrompt,
+    tools: platformTools,
+    transcriptRendererId: "streamdown",
+    toolRendererId: "minimal",
+    examples: [
+      "Fetch https://api.github.com/repos/obetomuniz/web-ai-sdk and tell me how many stars it has.",
+      "What time is it in Tokyo right now?",
+      "Summarize this markdown with headers and bullet points.",
     ],
   },
   {

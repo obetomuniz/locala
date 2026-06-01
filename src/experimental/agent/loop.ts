@@ -90,6 +90,9 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
   let baseSession: Session | null = null;
   let currentController: AbortController | null = null;
   let currentClone: Session | null = null;
+  let prefetchedClone: Session | null = null;
+  let prefetchInFlight: Promise<void> | null = null;
+  let prefetchEpoch = 0;
   let destroyed = false;
 
   const getBase = (): Session => {
@@ -120,9 +123,59 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     }
   };
 
+  const invalidatePrefetchedClone = () => {
+    prefetchEpoch++;
+    if (prefetchedClone) {
+      prefetchedClone.destroy();
+      prefetchedClone = null;
+    }
+  };
+
+  const prefetchRunClone = () => {
+    if (destroyed || prefetchedClone || prefetchInFlight) return;
+    const epoch = prefetchEpoch;
+    prefetchInFlight = (async () => {
+      let session: Session | null = null;
+      try {
+        session = await acquireRunSession();
+      } catch {
+        return;
+      }
+      if (destroyed || epoch !== prefetchEpoch || prefetchedClone) {
+        session.destroy();
+        return;
+      }
+      prefetchedClone = session;
+    })().finally(() => {
+      prefetchInFlight = null;
+    });
+  };
+
+  const takeRunSession = async (): Promise<Session> => {
+    if (prefetchedClone) {
+      const session = prefetchedClone;
+      prefetchedClone = null;
+      return session;
+    }
+    if (prefetchInFlight) {
+      try {
+        await prefetchInFlight;
+      } catch {
+        // Best-effort warmup only. Fall back to on-demand clone below.
+      }
+      if (prefetchedClone) {
+        const session = prefetchedClone;
+        prefetchedClone = null;
+        return session;
+      }
+    }
+    return acquireRunSession();
+  };
+
   // Pre-warm the model while the user reads the UI (mirrors the
-  // constraint agent), so the first run's clone is near-instant.
+  // constraint agent), so the first run can claim a ready clone.
   getBase();
+  prefetchRunClone();
 
   async function* loop(
     input: string,
@@ -140,7 +193,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     const fetchTool =
       inputUrls.length > 0 ? findUrlFetchingTool(tools) : undefined;
 
-    const session = await acquireRunSession();
+    const session = await takeRunSession();
     currentClone = session;
 
     // Size the fetch-content budget to the model's ACTUAL context. A cloned
@@ -370,6 +423,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
       if (currentController === controller) currentController = null;
       session.destroy();
       if (currentClone === session) currentClone = null;
+      prefetchRunClone();
     }
 
     yield { type: "done", reason: stopReason, text: finalText };
@@ -395,8 +449,10 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
       currentController?.abort();
       currentClone?.destroy();
       currentClone = null;
+      invalidatePrefetchedClone();
       baseSession?.destroy();
       baseSession = null;
+      prefetchRunClone();
     },
     destroy() {
       destroyed = true;
@@ -404,6 +460,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
       currentController = null;
       currentClone?.destroy();
       currentClone = null;
+      invalidatePrefetchedClone();
       baseSession?.destroy();
       baseSession = null;
     },

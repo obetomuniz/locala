@@ -186,6 +186,42 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
 
       const eventBuffer: AgentEvent[] = [];
       const stepsByIndex = new Map<number, AgentStep>();
+      // Coalesce token-level text updates to one React render per frame.
+      // High token rates (100+ deltas/s) otherwise cause visible stutter.
+      let pendingTextDelta = "";
+      let textFlushHandle: number | null = null;
+      let textFlushUsesRaf = false;
+      const flushPendingText = () => {
+        if (!pendingTextDelta) return;
+        const delta = pendingTextDelta;
+        pendingTextDelta = "";
+        setText((prev) => prev + delta);
+      };
+      const cancelTextFlush = () => {
+        if (textFlushHandle === null) return;
+        if (textFlushUsesRaf && typeof cancelAnimationFrame === "function") {
+          cancelAnimationFrame(textFlushHandle);
+        } else {
+          clearTimeout(textFlushHandle);
+        }
+        textFlushHandle = null;
+      };
+      const scheduleTextFlush = () => {
+        if (textFlushHandle !== null) return;
+        if (typeof requestAnimationFrame === "function") {
+          textFlushUsesRaf = true;
+          textFlushHandle = requestAnimationFrame(() => {
+            textFlushHandle = null;
+            flushPendingText();
+          });
+          return;
+        }
+        textFlushUsesRaf = false;
+        textFlushHandle = setTimeout(() => {
+          textFlushHandle = null;
+          flushPendingText();
+        }, 16) as unknown as number;
+      };
 
       const stream = agentRef.current.runStreaming(input);
 
@@ -234,6 +270,8 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
               // A stalled attempt is being retried — discard the partial
               // thought/answer it streamed so the fresh attempt starts
               // clean instead of appending onto stale text.
+              cancelTextFlush();
+              pendingTextDelta = "";
               setLiveThought((prev) =>
                 prev && prev.index === ev.index ? null : prev,
               );
@@ -293,7 +331,8 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
             }
             case "text_delta":
               setStatus("streaming");
-              setText((prev) => prev + ev.delta);
+              pendingTextDelta += ev.delta;
+              scheduleTextFlush();
               break;
             case "message":
               // Authoritative final text. We REPLACE (not "keep if
@@ -301,6 +340,8 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
               // streamed message — e.g. prepend the "unverified" URL
               // disclaimer — and that version only arrives here. On the
               // normal path this equals the streamed text (no flicker).
+              cancelTextFlush();
+              pendingTextDelta = "";
               setText(ev.text);
               break;
             case "done":
@@ -320,10 +361,14 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
           }
         }
       } catch (err) {
+        cancelTextFlush();
+        flushPendingText();
         const e = err instanceof Error ? err : new Error(String(err));
         setError(e);
         setStatus("error");
       } finally {
+        cancelTextFlush();
+        flushPendingText();
         runningRef.current = false;
       }
     },

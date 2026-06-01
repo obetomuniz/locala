@@ -19,8 +19,16 @@
  */
 
 import { useMemo } from "react";
-import { MessageContent } from "../../components/MessageContent";
 import type { AgentEvent, AgentStopReason } from "../agent/types";
+import {
+  resolveTranscriptRenderer,
+  type TranscriptRendererId,
+} from "./transcriptRenderers";
+import {
+  resolveToolRenderer,
+  type ToolRendererId,
+  type TranscriptToolFrame,
+} from "./toolRenderers";
 
 interface Props {
   events: AgentEvent[];
@@ -29,23 +37,14 @@ interface Props {
   liveThought: { index: number; text: string } | null;
   stopReason: AgentStopReason | null;
   busy: boolean;
-}
-
-interface ToolFrame {
-  callId: string;
-  name: string;
-  input: Record<string, unknown>;
-  progress: unknown[];
-  output?: unknown;
-  error?: { message: string; name?: string };
-  durationMs?: number;
-  pending: boolean;
+  transcriptRendererId?: TranscriptRendererId;
+  toolRendererId?: ToolRendererId;
 }
 
 interface StepFrame {
   index: number;
   thought?: string;
-  tools: ToolFrame[];
+  tools: TranscriptToolFrame[];
   isFinal: boolean;
 }
 
@@ -57,7 +56,7 @@ interface BuiltTranscript {
 function build(events: AgentEvent[]): BuiltTranscript {
   const steps: StepFrame[] = [];
   let current: StepFrame | null = null;
-  let toolByCallId = new Map<string, ToolFrame>();
+  let toolByCallId = new Map<string, TranscriptToolFrame>();
   let hasStreamedText = false;
 
   for (const ev of events) {
@@ -96,7 +95,7 @@ function build(events: AgentEvent[]): BuiltTranscript {
         break;
       case "tool_call": {
         if (current) {
-          const tf: ToolFrame = {
+          const tf: TranscriptToolFrame = {
             callId: ev.callId,
             name: ev.name,
             input: ev.input,
@@ -137,15 +136,27 @@ function build(events: AgentEvent[]): BuiltTranscript {
   return { steps, hasStreamedText };
 }
 
-export function Transcript({ events, text, liveThought, stopReason, busy }: Props) {
+export function Transcript({
+  events,
+  text,
+  liveThought,
+  stopReason,
+  busy,
+  transcriptRendererId,
+  toolRendererId,
+}: Props) {
   const { steps, hasStreamedText } = useMemo(() => build(events), [events]);
+  const renderTranscriptContent = resolveTranscriptRenderer(transcriptRendererId);
+  const ToolRenderer = resolveToolRenderer(toolRendererId);
 
   // True while a tool is mid-flight (its card shows "calling…"). Used to
   // decide whether to show the "thinking" indicator: we only show it when
   // the model is working but nothing else is animating — e.g. the gap after
   // the fetches complete and before the answer's first token streams in.
   const anyToolPending = steps.some((s) => s.tools.some((t) => t.pending));
+  const hasSettledTool = steps.some((s) => s.tools.some((t) => !t.pending));
   const showThinking = busy && !text && !anyToolPending;
+  const thinkingLabel = hasSettledTool ? "Drafting answer…" : "Thinking…";
 
   const empty = steps.length === 0 && !text;
   if (empty) {
@@ -181,13 +192,17 @@ export function Transcript({ events, text, liveThought, stopReason, busy }: Prop
               // thread interleaved with the tool actions, à la Claude Code —
               // no "interim vs final" visual split.
               <div className="agentp__answer-md">
-                <MessageContent content={thought} streaming={streaming} />
+                <TranscriptContent
+                  content={thought}
+                  streaming={streaming}
+                  render={renderTranscriptContent}
+                />
               </div>
             )}
             {step.tools.length > 0 && (
               <ul className="agentp__tool-cards">
                 {step.tools.map((tool) => (
-                  <ToolCard key={tool.callId} tool={tool} />
+                  <ToolRenderer key={tool.callId} tool={tool} />
                 ))}
               </ul>
             )}
@@ -202,7 +217,7 @@ export function Transcript({ events, text, liveThought, stopReason, busy }: Prop
             <i />
             <i />
           </span>
-          Thinking…
+          {thinkingLabel}
         </div>
       )}
 
@@ -215,7 +230,11 @@ export function Transcript({ events, text, liveThought, stopReason, busy }: Prop
           )}
           <div className="agentp__answer-md">
             {text ? (
-              <MessageContent content={text} streaming={busy} />
+              <TranscriptContent
+                content={text}
+                streaming={busy}
+                render={renderTranscriptContent}
+              />
             ) : (
               <p className="agentp__answer-placeholder">
                 {stopReason === "aborted"
@@ -236,75 +255,14 @@ export function Transcript({ events, text, liveThought, stopReason, busy }: Prop
   );
 }
 
-function ToolCard({ tool }: { tool: ToolFrame }) {
-  const status = tool.pending ? "calling" : tool.error ? "error" : "ok";
-
-  return (
-    <li className={`agentp__tool-card agentp__tool-card--${status}`}>
-      <header className="agentp__tool-card-head">
-        <code className="agentp__tool-card-name">{tool.name}</code>
-        <span
-          className={`agentp__tool-card-status agentp__tool-card-status--${status}`}
-        >
-          {status === "calling" && "calling…"}
-          {status === "ok" && `${Math.round(tool.durationMs ?? 0)}ms`}
-          {status === "error" && "error"}
-        </span>
-      </header>
-
-      {tool.progress.length > 0 && (
-        <ul className="agentp__tool-progress">
-          {tool.progress.map((p, i) => (
-            <li key={i} className="agentp__tool-progress-item">
-              <span className="agentp__tool-progress-dot" />
-              <code>{summarizeJson(p)}</code>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <details className="agentp__tool-card-details">
-        <summary className="agentp__tool-card-summary">
-          input · {summarizeJson(tool.input)}
-        </summary>
-        <pre className="agentp__tool-card-json">
-          {JSON.stringify(tool.input, null, 2)}
-        </pre>
-      </details>
-      {!tool.pending && (
-        <details className="agentp__tool-card-details" open={!!tool.error}>
-          <summary className="agentp__tool-card-summary">
-            {tool.error
-              ? `error · ${truncate(tool.error.message, 80)}`
-              : `output · ${summarizeJson(tool.output)}`}
-          </summary>
-          <pre className="agentp__tool-card-json">
-            {tool.error
-              ? formatError(tool.error)
-              : JSON.stringify(tool.output, null, 2)}
-          </pre>
-        </details>
-      )}
-    </li>
-  );
-}
-
-function summarizeJson(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "string") return `"${truncate(value, 40)}"`;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  try {
-    return truncate(JSON.stringify(value), 60);
-  } catch {
-    return "[unserializable]";
-  }
-}
-
-function truncate(s: string, n: number): string {
-  return s.length <= n ? s : `${s.slice(0, n - 1)}…`;
-}
-
-function formatError(err: { message: string; name?: string }): string {
-  if (err.name) return `${err.name}: ${err.message}`;
-  return err.message;
+function TranscriptContent({
+  content,
+  streaming,
+  render,
+}: {
+  content: string;
+  streaming: boolean;
+  render: (props: { content: string; streaming: boolean }) => JSX.Element | null;
+}) {
+  return render({ content, streaming });
 }
