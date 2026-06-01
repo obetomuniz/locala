@@ -103,6 +103,21 @@ Why:
 - Avoid one React render per token on fast streams.
 - Reduce perceived stutter without changing run semantics.
 
+## Decision 7: `returnDirect` tool fast-path
+
+Tools may opt into returning their output directly as the final response,
+skipping the extra post-tool model synthesis turn.
+
+- Tool metadata: `AgentTool.returnDirect`
+- Loop routing: `resolveDirectReturnText()` in `agent/loop.ts`
+- Current opt-in tool: `summarize_text`
+
+Why:
+
+- Removes avoidable first-token delay after fast deterministic tools.
+- Reduces local inference work and perceived latency.
+- Keeps default reasoning behavior for all non-opt-in tools.
+
 ## Security notes
 
 - Streamdown integration is configured with `skipHtml` in

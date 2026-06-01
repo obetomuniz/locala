@@ -69,6 +69,12 @@ export interface AgentTool<
   destructive?: boolean;
   validate?: boolean;
   /**
+   * End the run by returning this tool's output directly (skip the
+   * post-tool synthesis model turn). Use for deterministic tools whose
+   * output is already user-facing.
+   */
+  returnDirect?: boolean;
+  /**
    * Method-shorthand (not arrow-property) on purpose: TypeScript
    * `strictFunctionTypes` makes function-typed properties contravariant
    * on parameters, which would force every consumer to write

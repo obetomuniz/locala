@@ -29,6 +29,7 @@ export const summarizeTool: AgentTool<SummarizeInput, SummarizeOutput> = {
   description:
     "Summarize a piece of text using the browser's built-in Summarizer model (on-device). Use when the user asks for a tl;dr, key points, or a headline. Returns an empty summary if the API is unavailable.",
   readOnly: true,
+  returnDirect: true,
   inputSchema: {
     type: "object",
     properties: {

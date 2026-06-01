@@ -77,6 +77,7 @@ export const PRESETS: AgentPreset[] = [
     examples: [
       "Fetch https://api.github.com/repos/obetomuniz/web-ai-sdk and tell me how many stars it has.",
       "What time is it in Tokyo right now?",
+      "Summarize https://betomuniz.com/blog/who-owns-the-surface and https://betomuniz.com/blog/the-quiet-ai-war-inside-your-browser",
     ],
   },
   {
@@ -92,6 +93,7 @@ export const PRESETS: AgentPreset[] = [
       "Fetch https://api.github.com/repos/obetomuniz/web-ai-sdk and tell me how many stars it has.",
       "What time is it in Tokyo right now?",
       "Summarize this markdown with headers and bullet points.",
+      "Summarize https://betomuniz.com/blog/who-owns-the-surface and https://betomuniz.com/blog/the-quiet-ai-war-inside-your-browser",
     ],
   },
   {

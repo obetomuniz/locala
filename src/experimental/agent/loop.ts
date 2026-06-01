@@ -399,6 +399,27 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
           stepIndex,
           signal,
         });
+        const directText = resolveDirectReturnText(calls, records, tools);
+        if (directText !== null) {
+          finalText = directText;
+          steps.push({
+            index: stepIndex,
+            plan: {
+              ...(thought ? { thought } : {}),
+              toolCalls: calls,
+              final: true,
+              message: finalText,
+            },
+            toolCalls: records,
+            text: finalText,
+          });
+          yield { type: "plan", index: stepIndex, plan: { final: true, message: finalText } };
+          yield { type: "step_end", index: stepIndex };
+          recordFetches(records);
+          stopReason = "done";
+          yield { type: "message", text: finalText };
+          break;
+        }
         steps.push({
           index: stepIndex,
           plan: { ...(thought ? { thought } : {}), toolCalls: calls },
@@ -663,6 +684,41 @@ function buildToolResultTurn(
     // they fit the small context together.
     "Use these results to answer. If the user mentioned other URLs you haven't fetched yet, fetch those first; once you have them all, write ONE reply that covers every one of them.",
   ].join("\n");
+}
+
+/**
+ * Fast-path: when a single successful call targets a `returnDirect` tool,
+ * finish the run with its output and skip the extra model synthesis turn.
+ */
+function resolveDirectReturnText(
+  calls: ReadonlyArray<{ name: string; input: Record<string, unknown> }>,
+  records: readonly AgentToolCallRecord[],
+  tools: readonly AgentTool[],
+): string | null {
+  if (calls.length !== 1 || records.length !== 1) return null;
+  const call = calls[0];
+  const record = records[0];
+  if (record.error) return null;
+
+  const tool = tools.find((t) => t.name === call.name);
+  if (!tool?.returnDirect) return null;
+
+  return directOutputToText(record.output, tool.name);
+}
+
+function directOutputToText(output: unknown, toolName: string): string {
+  if (typeof output === "string") return output.trim();
+  // Summarizer returns `{ summary, cached }`; expose the summary as-is.
+  if (toolName === "summarize_text" && output && typeof output === "object") {
+    const summary = (output as { summary?: unknown }).summary;
+    if (typeof summary === "string") return summary.trim();
+  }
+  if (output === null || output === undefined) return "";
+  try {
+    return JSON.stringify(output, null, 2);
+  } catch {
+    return String(output);
+  }
 }
 
 function truncate(s: string, max: number): string {

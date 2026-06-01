@@ -16,7 +16,18 @@ function StreamdownMessageImpl({ content, streaming }: Props) {
   return (
     <div className="agentp__streamdown">
       <Streamdown
-        animated
+        mode="streaming"
+        animated={
+          streaming
+            ? {
+                animation: "fadeIn",
+                duration: 95,
+                stagger: 7,
+                easing: "ease-out",
+                sep: "word",
+              }
+            : false
+        }
         isAnimating={!!streaming}
         skipHtml
         parseIncompleteMarkdown
