@@ -1055,6 +1055,22 @@
   color: var(--text);
 }
 
+/* Subtle finish pass when streaming flips to settled content. */
+.agentp__streamdown--settling {
+  animation: agentp-streamdown-settle 140ms ease-out;
+}
+
+@keyframes agentp-streamdown-settle {
+  from {
+    opacity: 0.96;
+    filter: blur(0.25px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 .agentp__streamdown p {
   margin: 0 0 8px;
 }

@@ -547,6 +547,15 @@ async function* streamReply(
             parseToolCode(acc, tools).length > 0
               ? "tool"
               : "prose";
+          // First prose classification: flush the whole buffer so the
+          // chars held back during the 3-char classification window aren't
+          // dropped from the streamed answer (they'd otherwise only appear
+          // at the final `message` replace). `delta` is already inside
+          // `acc`, so skip the per-delta emit below to avoid duplicating it.
+          if (kind === "prose") {
+            yield { type: "text_delta", delta: acc };
+            continue;
+          }
         }
       }
       if (kind === "prose") yield { type: "text_delta", delta };
