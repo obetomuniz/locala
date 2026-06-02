@@ -4,7 +4,6 @@ import { isAvailable as isWebMCPAvailable } from "@web-ai-sdk/webmcp";
 import { isAvailable as isSummarizerAvailable } from "@web-ai-sdk/summarizer";
 import { useAgent } from "../agent/react";
 import { PRESETS } from "./presets";
-import { EventLog } from "./EventLog";
 import { ToolList } from "./ToolList";
 import { Transcript } from "./Transcript";
 import { useAutoscroll } from "./useAutoscroll";
@@ -165,7 +164,10 @@ export function AgentPlayground({ onClose }: Props) {
             <div className="agentp__col-row-title">Transcript</div>
             <span className="agentp__status">
               {status}
-              {stopReason && status !== "planning" && status !== "tool_calling"
+              {stopReason &&
+              stopReason !== status &&
+              status !== "planning" &&
+              status !== "tool_calling"
                 ? ` · ${stopReason}`
                 : ""}
             </span>
@@ -307,15 +309,6 @@ export function AgentPlayground({ onClose }: Props) {
             </div>
           </div>
           <div className="agentp__workspace-pane">
-            <div className="agentp__pane-title">
-              <span>Events</span>
-              <span className="agentp__pane-meta">
-                {events.length} event{events.length === 1 ? "" : "s"}
-              </span>
-            </div>
-            <EventLog events={events} />
-          </div>
-          <div className="agentp__workspace-pane">
             <div className="agentp__pane-title agentp__pane-tabs">
               <button
                 type="button"
@@ -373,10 +366,6 @@ export function AgentPlayground({ onClose }: Props) {
               <li>
                 The <strong>Transcript</strong> shows thoughts, tool calls
                 with live progress, and the streaming answer.
-              </li>
-              <li>
-                <strong>Events</strong> is the structural feed. Token-level
-                deltas are filtered out as noise.
               </li>
               <li>
                 <code>↻ new examples</code> regenerates prompt suggestions

@@ -18,7 +18,7 @@
  * so the streaming UX matches what `useAgent` exposes elsewhere.
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AgentEvent, AgentStopReason } from "../agent/types";
 import {
   resolveTranscriptRenderer,
@@ -157,6 +157,7 @@ export function Transcript({
   const hasSettledTool = steps.some((s) => s.tools.some((t) => !t.pending));
   const showThinking = busy && !text && !anyToolPending;
   const thinkingLabel = hasSettledTool ? "Drafting answer…" : "Thinking…";
+  const waitSeconds = useElapsedSeconds(showThinking);
 
   const empty = steps.length === 0 && !text;
   if (empty) {
@@ -218,6 +219,9 @@ export function Transcript({
             <i />
           </span>
           {thinkingLabel}
+          {waitSeconds > 0 && (
+            <span className="agentp__working-timer">{waitSeconds}s</span>
+          )}
         </div>
       )}
 
@@ -253,6 +257,27 @@ export function Transcript({
       )}
     </div>
   );
+}
+
+/**
+ * Seconds elapsed since `active` last became true; resets to 0 when it
+ * turns false. Lets the "Thinking… / Drafting answer…" indicator show how
+ * long the current wait has run.
+ */
+function useElapsedSeconds(active: boolean): number {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setSeconds(0);
+      return;
+    }
+    const start = Date.now();
+    const id = window.setInterval(() => {
+      setSeconds(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return seconds;
 }
 
 function TranscriptContent({

@@ -235,12 +235,12 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
 
           // `plan_delta` and `text_delta` arrive at token frequency
           // (often 50-200 per step). Pushing them through React state
-          // produces hundreds of renders that the UI never displays —
-          // EventLog already filters both, and `text_delta` is
-          // separately accumulated into the `text` state below. Skip
-          // them at the projection boundary so the structural event
-          // feed stays usable. Advanced consumers who want the raw
-          // firehose can iterate `getStream()` directly.
+          // produces hundreds of renders that the UI never displays:
+          // `text_delta` is separately accumulated into the `text` state
+          // below, and the transcript builds from the structural events.
+          // Skip them at the projection boundary so the event buffer stays
+          // usable. Advanced consumers who want the raw firehose can
+          // iterate `getStream()` directly.
           const isHighFreq =
             ev.type === "plan_delta" ||
             ev.type === "text_delta" ||
