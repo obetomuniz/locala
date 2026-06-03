@@ -1,3 +1,5 @@
+import type { A2uiServerMessage } from "./a2ui/types";
+
 /**
  * Public types for the experimental agent loop prototype.
  *
@@ -211,6 +213,13 @@ export type AgentEvent =
   | { type: "text_delta"; delta: string }
   | { type: "message"; text: string }
 
+  // A2UI v0.8 — one parsed JSONL server message per line
+  | {
+      type: "a2ui_message";
+      index: number;
+      message: A2uiServerMessage;
+    }
+
   // Terminal event — always last, always exactly one per run
   | { type: "done"; reason: AgentStopReason; text: string };
 
@@ -271,6 +280,15 @@ export interface CreateAgentOptions {
    * NOT re-prompt the model. Bounded to once per run. Default `true`.
    */
   autoFetchUrls?: boolean;
+  /**
+   * Enable A2UI v0.8 JSONL generative UI in the system prompt and stream
+   * parser. UI messages are emitted as `a2ui_message` events (transport is
+   * your `AgentEvent` pipe; AG-UI is optional and not required).
+   */
+  a2ui?: {
+    enabled?: boolean;
+    catalogId?: string;
+  };
 }
 
 export interface Agent {

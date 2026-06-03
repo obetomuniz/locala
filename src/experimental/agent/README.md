@@ -27,6 +27,7 @@ agent/
   createAgent.ts   — public factory (the entry point consumers import)
   loop.ts          — the run loop: session lifecycle, step loop, abort
   toolCode.ts      — parse the model's `tool_code` calls (safe, no eval)
+  a2ui/            — A2UI v0.8 generative UI (see a2ui/README.md)
   dispatcher.ts    — execute tool calls in parallel, stream progress
   events.ts        — AgentStream (async-iterable + result promise)
   transforms.ts    — pipe-able stream transforms (onlyType, addTiming…)
@@ -111,9 +112,17 @@ agent/
 | `tool_result`   | `{ index, callId, name, output? \| error?, durationMs }`      | When a tool resolves or rejects                               |
 | `text_delta`    | `{ delta }`                                                   | Characters of the final `message` as they stream              |
 | `message`       | `{ text }`                                                    | Once after `text_delta`s drain (or only event when not streaming) |
+| `a2ui_message`  | `{ index, message }`                                          | One A2UI v0.8 server message (see [`a2ui/README.md`](./a2ui/README.md)) |
 | `done`          | `{ reason, text }`                                            | Terminal event, always last, exactly once per run             |
 
 `reason ∈ "done" | "budget_exhausted" | "aborted" | "tool_error" | "unavailable" | "context_overflow" | "stalled"`.
+
+## Generative UI (A2UI)
+
+Optional `createAgent({ a2ui: { enabled: true } })`. Surfaces arrive as
+`a2ui_message` events; the playground preset synthesizes UI from constrained
+JSON when on-device models cannot emit valid JSONL. Overview:
+[`a2ui/README.md`](./a2ui/README.md).
 
 ## Composition examples
 

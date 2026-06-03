@@ -19,7 +19,9 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import type { A2uiSnapshot } from "../agent/a2ui";
 import type { AgentEvent, AgentStopReason } from "../agent/types";
+import { A2uiView } from "./a2ui/A2uiView";
 import {
   resolveTranscriptRenderer,
   type TranscriptRendererId,
@@ -33,12 +35,14 @@ import {
 interface Props {
   events: AgentEvent[];
   text: string;
+  a2uiSnapshot: A2uiSnapshot;
   /** Thought of the in-flight planning turn, streamed token-by-token. */
   liveThought: { index: number; text: string } | null;
   stopReason: AgentStopReason | null;
   busy: boolean;
   transcriptRendererId?: TranscriptRendererId;
   toolRendererId?: ToolRendererId;
+  a2uiEnabled?: boolean;
 }
 
 interface StepFrame {
@@ -129,11 +133,20 @@ function build(events: AgentEvent[]): BuiltTranscript {
         // Single non-streamed final message; the parent still owns the
         // text state, no per-event work here.
         break;
+      case "a2ui_message":
+        break;
       case "done":
         break;
     }
   }
   return { steps, hasStreamedText };
+}
+
+function hasA2uiContent(snapshot: A2uiSnapshot): boolean {
+  return Object.values(snapshot).some(
+    (s) =>
+      Object.keys(s.components).length > 0 || (s.ready && !!s.rootId),
+  );
 }
 
 function stopTone(reason: AgentStopReason | null): "error" | "warn" | null {
@@ -145,13 +158,22 @@ function stopTone(reason: AgentStopReason | null): "error" | "warn" | null {
 export function Transcript({
   events,
   text,
+  a2uiSnapshot,
   liveThought,
   stopReason,
   busy,
   transcriptRendererId,
   toolRendererId,
+  a2uiEnabled,
 }: Props) {
   const { steps, hasStreamedText } = useMemo(() => build(events), [events]);
+  const showA2ui = hasA2uiContent(a2uiSnapshot);
+  const a2uiFailed =
+    !!a2uiEnabled &&
+    stopReason === "done" &&
+    !busy &&
+    !showA2ui &&
+    !text.trim();
   const renderTranscriptContent = resolveTranscriptRenderer(transcriptRendererId);
   const ToolRenderer = resolveToolRenderer(toolRendererId);
 
@@ -161,13 +183,13 @@ export function Transcript({
   // the fetches complete and before the answer's first token streams in.
   const anyToolPending = steps.some((s) => s.tools.some((t) => t.pending));
   const hasSettledTool = steps.some((s) => s.tools.some((t) => !t.pending));
-  const showThinking = busy && !text && !anyToolPending;
+  const showThinking = busy && !text && !showA2ui && !anyToolPending;
   const thinkingLabel = hasSettledTool ? "Drafting answer…" : "Thinking…";
   const waitSeconds = useElapsedSeconds(showThinking);
 
   const tone = stopTone(stopReason);
 
-  const empty = steps.length === 0 && !text;
+  const empty = steps.length === 0 && !text && !showA2ui;
   if (empty) {
     return (
       <div className="agentp__empty">
@@ -233,7 +255,7 @@ export function Transcript({
         </div>
       )}
 
-      {(text || hasStreamedText || stopReason) && (
+      {(text || showA2ui || hasStreamedText || stopReason) && (
         <article
           className={`agentp__answer-block${tone ? ` agentp__answer-block--${tone}` : ""}`}
         >
@@ -243,12 +265,20 @@ export function Transcript({
             </div>
           )}
           <div className="agentp__answer-md">
-            {text ? (
+            {showA2ui ? (
+              <A2uiView snapshot={a2uiSnapshot} streaming={busy} />
+            ) : text ? (
               <TranscriptContent
                 content={text}
                 streaming={busy}
                 render={renderTranscriptContent}
               />
+            ) : a2uiFailed ? (
+              <p className="agentp__answer-placeholder">
+                The model finished without valid UI JSON (or without a
+                renderable surface). Try again, or ask a plain-text question.
+                Open the event log in devtools if you need the raw stream.
+              </p>
             ) : (
               <p className="agentp__answer-placeholder">
                 {stopReason === "aborted"

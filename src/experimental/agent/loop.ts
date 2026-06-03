@@ -40,7 +40,18 @@ import { streamFromGenerator, streamFromResult } from "./events";
 import type { AgentRunContext } from "./runContext";
 import { isEmptySummarizeOutput } from "./tools/summarize";
 import { extractFetchSourceText } from "./summarizeProvenance";
-import { parseToolCode, stripToolCode } from "./toolCode";
+import {
+  A2UI_PLAYGROUND_CONSTRAINT,
+  A2uiJsonlBuffer,
+  buildA2uiPromptAppendix,
+  parseA2uiLine,
+  repairAndParseA2ui,
+  replyHasA2uiPayload,
+  toolsCompatibleWithA2uiConstraint,
+  unwrapA2uiFence,
+  userWantsA2uiUi,
+} from "./a2ui";
+import { parseToolCode, proseStreamLimit, stripToolCode } from "./toolCode";
 import { extractUrls, normUrl, userUrlSet } from "./urls";
 import type {
   Agent,
@@ -84,7 +95,13 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
   // when the model finalizes without fetching, and flag any URL answer
   // that wasn't backed by a successful fetch.
   const autoFetchUrls = options.autoFetchUrls ?? true;
-  const systemPrompt = buildNativePrompt(options.systemPrompt, tools);
+  const a2uiEnabled = options.a2ui?.enabled ?? false;
+  const systemPrompt = buildNativePrompt(
+    options.systemPrompt,
+    tools,
+    a2uiEnabled,
+    options.a2ui?.catalogId,
+  );
   // The `tools` passthrough on `createSession` (since @web-ai-sdk/prompt
   // 0.5.1) is what lets this run through the SDK instead of reaching for
   // `globalThis.LanguageModel`. The SDK forwards `tools` to the native
@@ -322,8 +339,20 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
         yield { type: "step_start", index: stepIndex };
 
         let reply: string;
+        let streamedAnswerText = false;
+        let replyKind: ReplyKind | undefined;
         try {
-          reply = yield* streamReply(session, turnInput, signal, stepIndex, tools);
+          const streamed = yield* streamReply(
+            session,
+            turnInput,
+            signal,
+            stepIndex,
+            tools,
+            a2uiEnabled,
+          );
+          reply = streamed.text;
+          streamedAnswerText = streamed.streamedAnswerText;
+          replyKind = streamed.replyKind;
         } catch (err) {
           if (err instanceof PromptAbortError || isAbort(err)) {
             stopReason = "aborted";
@@ -412,6 +441,54 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
             continue;
           }
 
+          const a2uiBody = unwrapA2uiFence(reply);
+          const a2uiMsgs =
+            a2uiEnabled && !streamedAnswerText
+              ? repairAndParseA2ui(a2uiBody)
+              : [];
+          if (a2uiMsgs.length > 0) {
+            if (replyKind !== "a2ui") {
+              for (const message of a2uiMsgs) {
+                yield { type: "a2ui_message", index: stepIndex, message };
+              }
+            }
+            finalText = "";
+            yield {
+              type: "plan",
+              index: stepIndex,
+              plan: { final: true, message: "" },
+            };
+            steps.push({
+              index: stepIndex,
+              plan: { final: true, message: "" },
+              toolCalls: [],
+              text: "",
+            });
+            yield { type: "step_end", index: stepIndex };
+            stopReason = "done";
+            yield { type: "message", text: "" };
+            break;
+          }
+
+          if (a2uiEnabled && !streamedAnswerText && replyHasA2uiPayload(a2uiBody)) {
+            finalText = "";
+            yield {
+              type: "plan",
+              index: stepIndex,
+              plan: { final: true, message: "" },
+            };
+            steps.push({
+              index: stepIndex,
+              plan: { final: true, message: "" },
+              toolCalls: [],
+              text: "",
+            });
+            yield { type: "step_end", index: stepIndex };
+            stopReason = "done";
+            yield { type: "message", text: "" };
+            break;
+          }
+
           // After the retry is spent, if it STILL looks like unparsed tool
           // scaffolding, don't show raw call code to the user — say so and
           // suggest a re-run.
@@ -447,6 +524,11 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
         // that prose as a synthesized `thought` for parity with the
         // constraint path's transcript.
         const thought = leadingProse(reply);
+        // We optimistically stream leading prose to the answer panel before
+        // knowing the turn is a tool call. Now that it is, discard that
+        // premature text so it isn't duplicated. It re-appears just below as
+        // this turn's interleaved `thought`, beside the tool cards.
+        if (streamedAnswerText) yield { type: "step_reset", index: stepIndex };
         if (thought) yield { type: "thought", index: stepIndex, text: thought };
 
         // Surface a plan so the UI flips to "tool_calling", then dispatch
@@ -579,25 +661,69 @@ type RaceStep =
   | { kind: "aborted" }
   | { kind: "stalled" };
 
+type ReplyKind = "prose" | "tool" | "a2ui";
+
+interface StreamedReply {
+  /** The full accumulated reply (prose, `tool_code`, or A2UI JSONL). */
+  text: string;
+  /** Whether any prose was streamed to the answer panel as `text_delta`. */
+  streamedAnswerText: boolean;
+  replyKind?: ReplyKind;
+}
+
+function* emitA2uiLines(
+  lines: string[],
+  stepIndex: number,
+): Generator<AgentEvent, void, void> {
+  for (const line of lines) {
+    const message = parseA2uiLine(line);
+    if (message) yield { type: "a2ui_message", index: stepIndex, message };
+  }
+}
+
+function* emitA2uiMessages(
+  messages: ReturnType<typeof repairAndParseA2ui>,
+  stepIndex: number,
+): Generator<AgentEvent, void, void> {
+  for (const message of messages) {
+    yield { type: "a2ui_message", index: stepIndex, message };
+  }
+}
+
 async function* streamReply(
   session: Session,
   input: string,
   signal: AbortSignal,
   stepIndex: number,
   tools: readonly AgentTool[],
-): AsyncGenerator<AgentEvent, string, void> {
-  // No `responseConstraint`: native tool calling relies on the `tools`
-  // attached at session creation. The SDK already normalizes chunks to
-  // deltas (never cumulative), so we just accumulate.
-  const stream = session.sendStreaming(input, { signal });
+  a2uiEnabled: boolean,
+): AsyncGenerator<AgentEvent, StreamedReply, void> {
+  const constrainUi =
+    a2uiEnabled &&
+    userWantsA2uiUi(input) &&
+    (tools.length === 0 || toolsCompatibleWithA2uiConstraint(tools));
+
+  const stream = session.sendStreaming(input, {
+    signal,
+    ...(constrainUi
+      ? {
+          responseConstraint: A2UI_PLAYGROUND_CONSTRAINT,
+          omitResponseConstraintInput: true,
+        }
+      : {}),
+  });
   const it = stream[Symbol.asyncIterator]();
 
   let acc = "";
-  // `prose` | `tool` | undefined (undecided). Once we can tell whether
-  // the reply is a plain answer or a `tool_code` call, we either stream
-  // it as `text_delta` (prose) or hold it back (tool call), so the
-  // answer panel never shows raw tool-call code.
-  let kind: "prose" | "tool" | undefined;
+  let kind: ReplyKind | undefined = constrainUi ? "a2ui" : undefined;
+  const jsonlBuf = new A2uiJsonlBuffer();
+  // How many chars of clean leading prose we've already streamed. The
+  // model often prefaces a `tool_code` block with a sentence ("I'll detect
+  // the language first…"), which classifies the reply as prose; we still
+  // stream that sentence, but stop at the fence so the raw ```tool_code```
+  // never reaches the answer. The held-back tail is parsed as the tool
+  // call once the stream ends.
+  let emittedProse = 0;
 
   try {
     while (true) {
@@ -622,34 +748,61 @@ async function* streamReply(
 
       yield { type: "plan_delta", index: stepIndex, raw: delta };
 
-      if (kind === undefined) {
+      if (kind === undefined && !constrainUi) {
         const trimmed = acc.trimStart();
-        if (trimmed.length >= 3) {
+        if (trimmed.startsWith("```")) {
+          if (/^```(?:a2ui|jsonl)\b/i.test(trimmed)) kind = "a2ui";
+          else kind = "tool";
+        } else if (a2uiEnabled && trimmed.startsWith("{")) {
+          kind = "a2ui";
+        } else if (trimmed.length >= 3) {
           kind =
-            trimmed.startsWith("```") ||
-            /tool_code/i.test(acc) ||
-            parseToolCode(acc, tools).length > 0
+            /tool_code/i.test(acc) || parseToolCode(acc, tools).length > 0
               ? "tool"
               : "prose";
-          // First prose classification: flush the whole buffer so the
-          // chars held back during the 3-char classification window aren't
-          // dropped from the streamed answer (they'd otherwise only appear
-          // at the final `message` replace). `delta` is already inside
-          // `acc`, so skip the per-delta emit below to avoid duplicating it.
-          if (kind === "prose") {
-            yield { type: "text_delta", delta: acc };
-            continue;
+        }
+      }
+
+      if (kind === "a2ui" && !constrainUi) {
+        yield* emitA2uiLines(jsonlBuf.feed(delta), stepIndex);
+      } else if (kind === "prose") {
+        const fence = acc.indexOf("```");
+        if (fence !== -1) {
+          if (fence > emittedProse) {
+            yield { type: "text_delta", delta: acc.slice(emittedProse, fence) };
+            emittedProse = fence;
+          }
+          kind = "tool";
+        } else {
+          const limit = proseStreamLimit(acc);
+          if (limit > emittedProse) {
+            yield { type: "text_delta", delta: acc.slice(emittedProse, limit) };
+            emittedProse = limit;
           }
         }
       }
-      if (kind === "prose") yield { type: "text_delta", delta };
     }
   } catch (err) {
     if (err instanceof AgentStalledError || isAbort(err)) throw err;
     throw err instanceof Error ? err : new Error(String(err));
   }
 
-  return acc;
+  if (a2uiEnabled && emittedProse === 0) {
+    const repaired = repairAndParseA2ui(acc);
+    if (repaired.length > 0) {
+      yield* emitA2uiMessages(repaired, stepIndex);
+      return { text: acc, streamedAnswerText: false, replyKind: "a2ui" };
+    }
+    if (constrainUi || replyHasA2uiPayload(acc)) {
+      return { text: acc, streamedAnswerText: false, replyKind: "a2ui" };
+    }
+  }
+
+  return {
+    text: acc,
+    streamedAnswerText: emittedProse > 0,
+    replyKind: kind,
+  };
 }
 
 function raceNext(
@@ -716,12 +869,20 @@ function toSdkTool(tool: AgentTool): LanguageModelTool {
 function buildNativePrompt(
   base: string | undefined,
   tools: readonly AgentTool[],
+  a2uiEnabled: boolean,
+  a2uiCatalogId?: string,
 ): string {
   const preamble =
     base ?? "You are a helpful, on-device assistant in the user's browser.";
+  const a2uiBlock = a2uiEnabled
+    ? buildA2uiPromptAppendix(a2uiCatalogId)
+    : "";
 
   if (tools.length === 0) {
-    return [preamble, "Reply to the user directly in plain text."].join("\n\n");
+    const tail = a2uiEnabled
+      ? "For UI requests output one JSON object only. For simple Q&A, reply in plain markdown."
+      : "Reply to the user directly in plain text.";
+    return [preamble, a2uiBlock, tail].filter(Boolean).join("\n\n");
   }
 
   const catalog = tools
@@ -743,8 +904,16 @@ function buildNativePrompt(
       "```",
       "If the user gives MULTIPLE URLs or asks about several items, fetch EACH one (call the tool again for each), then write ONE final answer that covers ALL of them — never answer about a URL you haven't fetched, and don't drop any.",
       "Never invent values a tool can provide. After you receive the tool results, reply to the user directly in plain text.",
+      ...(a2uiEnabled
+        ? [
+            "For chart/card/dashboard requests, output one JSON object as described in Generative UI — not tool_code. Use tools only when the user needs live data (e.g. clock_now for time in a timezone).",
+          ]
+        : []),
     ].join("\n"),
-  ].join("\n\n");
+    a2uiBlock,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /** Compact `(field, field?)` signature for the tool catalog. */
@@ -947,9 +1116,9 @@ function maybeFlagUnverifiedUrl(
  * straight into the call (the common case) or has no fence.
  */
 function leadingProse(reply: string): string {
-  const fence = reply.indexOf("```");
-  if (fence <= 0) return "";
-  const prose = reply.slice(0, fence).trim();
+  const end = proseStreamLimit(reply);
+  if (end <= 0) return "";
+  const prose = reply.slice(0, end).trim();
   // Guard against a stray short token; only treat a real sentence as a
   // thought, and keep it bounded so a runaway preface can't flood the UI.
   if (prose.length < 4) return "";

@@ -86,6 +86,19 @@ export function stripToolCode(text: string): string {
     .trim();
 }
 
+/**
+ * Index one past the last character of leading prose that is safe to show
+ * while streaming: everything before the first ``` fence, minus a trailing
+ * run of 1–2 backticks that might be the start of a fence still arriving.
+ */
+export function proseStreamLimit(text: string): number {
+  const fence = text.indexOf("```");
+  if (fence !== -1) return fence;
+  if (text.endsWith("``")) return text.length - 2;
+  if (text.endsWith("`")) return text.length - 1;
+  return text.length;
+}
+
 function collectCodeBlocks(text: string): string[] {
   const blocks: string[] = [];
   const fence = /```(?:tool_code|python|tool)?\s*([\s\S]*?)```/gi;

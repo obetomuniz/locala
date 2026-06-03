@@ -42,6 +42,22 @@ export {
   AgentUnknownToolError,
   AgentToolExecutionError,
 } from "./errors";
+export {
+  A2UI_V0_8_STANDARD_CATALOG,
+  A2uiJsonlBuffer,
+  applyA2uiMessage,
+  buildA2uiPromptAppendix,
+  createEmptyA2uiSnapshot,
+  extractA2uiJsonlLines,
+  feedA2uiReply,
+  looksLikeA2uiStream,
+  parseA2uiLine,
+  parseA2uiMessagesFromText,
+  replyHasA2uiPayload,
+  unwrapA2uiFence,
+  type A2uiServerMessage,
+  type A2uiSnapshot,
+} from "./a2ui";
 export type {
   Agent,
   AgentEvent,

@@ -28,8 +28,8 @@ The contract is intentionally narrow:
 
 | Folder         | Status        | URL hash               | Notes                                                                           |
 | -------------- | ------------- | ---------------------- | ------------------------------------------------------------------------------- |
-| `agent/`       | prototype     | n/a (library)          | On-device agent loop over `@web-ai-sdk/prompt`. Implements the proposal in `web-ai-sdk/kit/.ideas/agent.md`. See its README. |
-| `playground/`  | demo UI       | `#experimental/agent`  | Chat-style playground that exercises the agent + preset toolbelts. See `playground/README.md` for renderer/tool adapter decisions and lift notes. |
+| `agent/`       | prototype     | n/a (library)          | On-device agent loop; optional A2UI v0.8 via `agent/a2ui/`. See `agent/README.md`. |
+| `playground/`  | demo UI       | `#experimental/agent`  | Presets include **Generative UI (A2UI)**; see `agent/a2ui/README.md` and `playground/README.md`. |
 
 ## How to add a new experiment
 

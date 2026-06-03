@@ -282,3 +282,13 @@ Practical rule:
 3. Set `transcriptRendererId`/`toolRendererId` in a preset.
 4. Validate in `#experimental/agent` against both default and custom presets.
 
+## Decision 6: Generative UI (A2UI) preset
+
+The **Generative UI (A2UI)** preset exercises declarative UI on the agent
+event bus (`a2ui_message`), with a React renderer in `a2ui/A2uiView.tsx`.
+On-device models use a constrained JSON → synthesize path; dashed example
+chips load static surfaces without inference.
+
+Protocol overview and module map:
+[`../agent/a2ui/README.md`](../agent/a2ui/README.md).
+

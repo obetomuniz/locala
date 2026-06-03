@@ -34,6 +34,7 @@ export function AgentPlayground({ onClose }: Props) {
   const {
     status,
     text,
+    a2uiSnapshot,
     liveThought,
     events,
     steps,
@@ -42,6 +43,7 @@ export function AgentPlayground({ onClose }: Props) {
     run,
     abort,
     reset,
+    previewA2ui,
   } = useAgent({
     systemPrompt: preset.systemPrompt,
     tools,
@@ -50,6 +52,7 @@ export function AgentPlayground({ onClose }: Props) {
     // Chrome warns (and degrades output quality) when no output language
     // is set on a LanguageModel request. Pin English for the planner.
     language: "en",
+    a2ui: preset.a2ui,
   });
 
   const {
@@ -185,11 +188,13 @@ export function AgentPlayground({ onClose }: Props) {
               <Transcript
                 events={events}
                 text={text}
+                a2uiSnapshot={a2uiSnapshot}
                 liveThought={liveThought}
                 stopReason={stopReason}
                 busy={busy}
                 transcriptRendererId={preset.transcriptRendererId}
                 toolRendererId={preset.toolRendererId}
+                a2uiEnabled={preset.a2ui?.enabled}
               />
               {error && (
                 <div className="agentp__banner agentp__banner--error">
@@ -237,6 +242,18 @@ export function AgentPlayground({ onClose }: Props) {
                     : undefined
                 }
               >
+                {(preset.a2uiStaticDemos ?? []).map((demo) => (
+                  <button
+                    key={demo.id}
+                    type="button"
+                    className="agentp__example agentp__example--static"
+                    onClick={() => previewA2ui(demo.messages)}
+                    disabled={busy}
+                    title="Instant preview (no model call)"
+                  >
+                    {demo.label}
+                  </button>
+                ))}
                 {examples.map((ex) => (
                   <button
                     key={ex}

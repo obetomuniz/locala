@@ -14,6 +14,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAvailable as isPromptAvailable } from "@web-ai-sdk/prompt";
+import {
+  applyA2uiMessage,
+  createEmptyA2uiSnapshot,
+  type A2uiServerMessage,
+  type A2uiSnapshot,
+} from "../a2ui";
 import { createAgent } from "../createAgent";
 import type {
   Agent,
@@ -51,6 +57,8 @@ export type LiveThought = { index: number; text: string } | null;
 export interface UseAgentReturn {
   status: UseAgentStatus;
   text: string;
+  /** Latest A2UI v0.8 surface snapshot from `a2ui_message` events. */
+  a2uiSnapshot: A2uiSnapshot;
   /** Streaming thought of the in-flight planning turn (null when idle/none). */
   liveThought: LiveThought;
   steps: AgentStep[];
@@ -64,6 +72,8 @@ export interface UseAgentReturn {
   /** Clear the conversation session so the next run starts fresh. */
   newSession: () => void;
   reset: () => void;
+  /** Apply a fixed A2UI surface without calling the model (playground demos). */
+  previewA2ui: (messages: readonly A2uiServerMessage[]) => void;
 }
 
 const EMPTY_EVENTS: AgentEvent[] = [];
@@ -93,6 +103,8 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
     options.language,
     options.onToolError,
     options.tools,
+    options.a2ui?.enabled,
+    options.a2ui?.catalogId,
     promptAvailable,
   ]);
 
@@ -100,6 +112,9 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
     promptAvailable ? "idle" : "unavailable",
   );
   const [text, setText] = useState("");
+  const [a2uiSnapshot, setA2uiSnapshot] = useState<A2uiSnapshot>(
+    createEmptyA2uiSnapshot,
+  );
   // Thought of the in-flight planning turn, streamed token-by-token.
   // Kept separate from `steps`/`events` (like `text`) so the high-freq
   // deltas don't flood the structural feed.
@@ -120,6 +135,7 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
   const reset = useCallback(() => {
     setStatus(promptAvailable ? "idle" : "unavailable");
     setText("");
+    setA2uiSnapshot(createEmptyA2uiSnapshot());
     setLiveThought(null);
     setSteps(EMPTY_STEPS);
     setEvents(EMPTY_EVENTS);
@@ -150,11 +166,51 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
     agentRef.current?.newSession();
     setStatus(promptAvailable ? "idle" : "unavailable");
     setText("");
+    setA2uiSnapshot(createEmptyA2uiSnapshot());
     setSteps(EMPTY_STEPS);
     setEvents(EMPTY_EVENTS);
     setStopReason(null);
     setError(null);
   }, [promptAvailable]);
+
+  const previewA2ui = useCallback(
+    (messages: readonly A2uiServerMessage[]) => {
+      if (runningRef.current) {
+        abortedRef.current = true;
+        agentRef.current?.abort();
+        runningRef.current = false;
+      }
+      let snap = createEmptyA2uiSnapshot();
+      const evs: AgentEvent[] = [{ type: "step_start", index: 0 }];
+      for (const message of messages) {
+        snap = applyA2uiMessage(snap, message);
+        evs.push({ type: "a2ui_message", index: 0, message });
+      }
+      evs.push({
+        type: "plan",
+        index: 0,
+        plan: { final: true, message: "" },
+      });
+      evs.push({ type: "step_end", index: 0 });
+      evs.push({ type: "done", reason: "done", text: "" });
+      setLiveThought(null);
+      setText("");
+      setA2uiSnapshot(snap);
+      setSteps([
+        {
+          index: 0,
+          plan: { final: true, message: "" },
+          toolCalls: [],
+          text: "",
+        },
+      ]);
+      setEvents(evs);
+      setStopReason("done");
+      setStatus("done");
+      setError(null);
+    },
+    [],
+  );
 
   const getStream = useCallback((input: string): AgentStream => {
     if (!promptAvailable || !agentRef.current) {
@@ -178,6 +234,7 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
       abortedRef.current = false;
       setStatus("planning");
       setText("");
+      setA2uiSnapshot(createEmptyA2uiSnapshot());
       setLiveThought(null);
       setSteps(EMPTY_STEPS);
       setEvents([]);
@@ -281,6 +338,7 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
                 prev && prev.index === ev.index ? null : prev,
               );
               setText("");
+              setA2uiSnapshot(createEmptyA2uiSnapshot());
               const step = stepsByIndex.get(ev.index);
               if (step) {
                 step.toolCalls = [];
@@ -288,6 +346,10 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
               }
               break;
             }
+            case "a2ui_message":
+              setStatus("streaming");
+              setA2uiSnapshot((prev) => applyA2uiMessage(prev, ev.message));
+              break;
             case "plan_delta":
               break;
             case "thought_delta":
@@ -397,6 +459,7 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
   return {
     status,
     text,
+    a2uiSnapshot,
     liveThought,
     steps,
     events,
@@ -407,5 +470,6 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
     abort,
     newSession,
     reset,
+    previewA2ui,
   };
 }

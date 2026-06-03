@@ -13,6 +13,8 @@ import {
   clipboardWriteTool,
   createFetchUrlTool,
 } from "../agent/tools";
+import { A2UI_STATIC_DEMOS } from "../agent/a2ui";
+import type { A2uiStaticDemo } from "../agent/a2ui";
 import type { AgentTool } from "../agent/types";
 import type { TranscriptRendererId } from "./transcriptRenderers";
 import type { ToolRendererId } from "./toolRenderers";
@@ -24,8 +26,13 @@ export interface AgentPreset {
   systemPrompt: string;
   tools: AgentTool[];
   examples: string[];
+  /** Instant previews (no model). Shown as dashed chips before `examples`. */
+  a2uiStaticDemos?: readonly A2uiStaticDemo[];
+  /** When false, hides "↻ new examples" (avoids random off-topic prompts). */
+  regenerateExamples?: boolean;
   transcriptRendererId?: TranscriptRendererId;
   toolRendererId?: ToolRendererId;
+  a2ui?: { enabled: boolean };
 }
 
 // Generous raw cap so full blog/article HTML is captured before the
@@ -43,6 +50,21 @@ const platformPrompt =
   "You are a research and productivity assistant. Default to answering DIRECTLY from your own knowledge with NO tools — especially for requests to write, generate, compose, rewrite, or explain something. When the user asks to summarize quoted or pasted text (e.g. after \"Summarize:\"), call `summarize_text` with that exact text — do not paraphrase in prose instead. Reach for other tools only when the task genuinely needs external data you don't have. Use `fetch_url` ONLY when the user actually includes a URL (or explicitly asks you to look something up online), and only ever fetch a URL the user really provided — NEVER invent, guess, or assume a URL. When the user does provide a URL, you MUST call `fetch_url` first (you don't know a page's contents without fetching it); if that fetch fails (often CORS), say so explicitly and never fabricate the page contents. Fetch is read-only and capped to 32 KB; clipboard tools require user permission.";
 
 export const PRESETS: AgentPreset[] = [
+  {
+    id: "a2ui",
+    name: "Generative UI (A2UI)",
+    description:
+      "UI turns use a constrained JSON payload synthesized into A2UI v0.8 on the client. Transport is AgentEvent, not AG-UI.",
+    systemPrompt:
+      "You build small, helpful UIs in the browser. For cards, charts, or dashboards output one JSON object (title, subtitle, layout, metrics, optional buttonLabel). Prefer charts and KPI tiles over forms. For current time in any city, call clock_now with the right IANA timeZone — never guess. Use plain markdown only for other simple Q&A with no UI.",
+    tools: [clockNowTool],
+    a2ui: { enabled: true },
+    a2uiStaticDemos: A2UI_STATIC_DEMOS,
+    examples: [
+      "Show a 7-day bar chart titled Weekly signups with sample numbers.",
+      "What time is it in Tokyo? (plain text only, no UI)",
+    ],
+  },
   {
     id: "minimal",
     name: "Minimal",

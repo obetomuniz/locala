@@ -58,6 +58,10 @@ export function useExamples(preset: AgentPreset): UseExamplesReturn {
   // that's an opt-in action.
   useEffect(() => {
     setError(null);
+    if (preset.regenerateExamples === false) {
+      setExamples(preset.examples);
+      return;
+    }
     try {
       const cached = sessionStorage.getItem(STORAGE_PREFIX + preset.id);
       if (cached) {
@@ -77,7 +81,8 @@ export function useExamples(preset: AgentPreset): UseExamplesReturn {
     setExamples(preset.examples);
   }, [preset.id, preset.examples]);
 
-  const canRegenerate = isPromptAvailable();
+  const canRegenerate =
+    preset.regenerateExamples !== false && isPromptAvailable();
 
   const regenerate = useCallback(async () => {
     if (!canRegenerate || generating) return;
@@ -94,7 +99,9 @@ export function useExamples(preset: AgentPreset): UseExamplesReturn {
     const promptInput = [
       `You are designing demo prompts for an on-device AI agent. The agent's persona is:\n"""${preset.systemPrompt}"""`,
       `The agent has these tools available:\n${toolCatalog}`,
-      `Generate ${MAX_EXAMPLES} short, concrete example user prompts (one sentence each, under 100 characters) that would showcase what this agent can do. Each example should naturally need one or two of the available tools (or none, if no tools are present). Vary the topic across examples. Do not number them. Do not add explanations.`,
+      preset.a2ui?.enabled
+        ? `Generate ${MAX_EXAMPLES} short example user prompts (one sentence each, under 100 characters) for this generative-UI agent. Prefer dashboards, bar charts, KPI cards, and welcome screens — NOT forms or random input fields. One example may be plain-text Q&A with no UI. Do not number them. Do not add explanations.`
+        : `Generate ${MAX_EXAMPLES} short, concrete example user prompts (one sentence each, under 100 characters) that would showcase what this agent can do. Each example should naturally need one or two of the available tools (or none, if no tools are present). Vary the topic across examples. Do not number them. Do not add explanations.`,
       `Respond with a JSON object: { "examples": ["...", "...", "..."] }.`,
     ].join("\n\n");
 
