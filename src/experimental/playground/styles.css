@@ -1071,6 +1071,32 @@
   }
 }
 
+/* Streaming-speed counter shown under any rendered message, in every
+   preset (shared `StreamStats` component). */
+.agentp__stream-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border, rgba(127, 127, 127, 0.25));
+  font-size: 11px;
+  font-family:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  color: var(--text-dim, #888);
+  font-variant-numeric: tabular-nums;
+}
+
+.agentp__stream-stat {
+  white-space: nowrap;
+}
+
+.agentp__stream-stat:last-child {
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .agentp__streamdown p {
   margin: 0 0 8px;
 }
@@ -1091,6 +1117,90 @@
   font-family:
     ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
   font-size: 12px;
+}
+
+/* Streamdown ships its default element renderers as Tailwind/shadcn utility
+   classes (`border-border`, `my-6`, `list-disc`, …). This project doesn't use
+   Tailwind, so those classes are no-ops and any element Streamdown emits falls
+   back to raw user-agent styles. The most visible casualty is `<hr>` (from a
+   `---` separator the model loves to print after a bulleted summary): the
+   browser's default inset rule shows up as a jarring bright line mid-stream.
+   Style the markdown elements here with the host design tokens so they match
+   the dark theme. */
+.agentp__streamdown hr {
+  border: none;
+  border-top: 1px solid var(--border-strong, rgba(255, 255, 255, 0.06));
+  margin: 16px 0;
+  height: 0;
+}
+
+.agentp__streamdown h1,
+.agentp__streamdown h2,
+.agentp__streamdown h3,
+.agentp__streamdown h4,
+.agentp__streamdown h5,
+.agentp__streamdown h6 {
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 16px 0 8px;
+}
+
+.agentp__streamdown h1 {
+  font-size: 18px;
+}
+
+.agentp__streamdown h2 {
+  font-size: 16px;
+}
+
+.agentp__streamdown h3 {
+  font-size: 14px;
+}
+
+.agentp__streamdown h4,
+.agentp__streamdown h5,
+.agentp__streamdown h6 {
+  font-size: 13px;
+}
+
+.agentp__streamdown ul,
+.agentp__streamdown ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.agentp__streamdown li {
+  margin: 2px 0;
+}
+
+.agentp__streamdown li::marker {
+  color: var(--text-faint);
+}
+
+.agentp__streamdown blockquote {
+  margin: 8px 0;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--border-strong, rgba(255, 255, 255, 0.06));
+  color: var(--text-muted);
+}
+
+.agentp__streamdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--text-faint);
+}
+
+.agentp__streamdown table {
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.agentp__streamdown th,
+.agentp__streamdown td {
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.06));
+  padding: 4px 8px;
+  text-align: left;
 }
 
 .agentp__answer-md .md-inline-code {

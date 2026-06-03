@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { Streamdown } from "streamdown";
 import "streamdown/styles.css";
 import { ThinkingIndicator } from "../../components/ThinkingIndicator";
+import { StreamStats } from "./StreamStats";
 
 interface Props {
   content: string;
@@ -43,12 +44,14 @@ function StreamdownMessageImpl({ content, streaming }: Props) {
         animated={
           streaming
             ? {
-                // A short fade keeps rendered words in step with the token
-                // stream; a longer one (e.g. 600ms) makes words visibly
-                // trail generation on fast on-device streams.
+                // Keep the fade very short so rendered words stay in step
+                // with the token stream. Throughput is model-bound (the
+                // on-device token rate is the ceiling), so a long fade just
+                // makes words visibly trail generation and reads as sluggish.
+                // 40ms is a subtle smoothing pass without the lag.
                 animation: "fadeIn",
-                duration: 150,
-                easing: "ease-in-out",
+                duration: 40,
+                easing: "ease-out",
                 sep: "word",
               }
             : false
@@ -59,9 +62,9 @@ function StreamdownMessageImpl({ content, streaming }: Props) {
       >
         {content}
       </Streamdown>
+      <StreamStats content={content} streaming={streaming} />
     </div>
   );
 }
 
 export const StreamdownMessage = memo(StreamdownMessageImpl);
-

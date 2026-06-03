@@ -229,6 +229,8 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     const fetchedOk = new Set<string>();
     const fetchTried = new Set<string>();
     let autoFetchDone = false;
+    // Guards the one-time "answer directly, no tools" self-heal below.
+    let directRetryDone = false;
     const recordFetches = (records: AgentToolCallRecord[]) => {
       if (!fetchTool) return;
       for (const r of records) {
@@ -242,13 +244,19 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
 
     let stepIndex = 0;
     try {
-      // Proactive fetch-all (multi-URL): fetch EVERY URL up front, in
-      // parallel, so the model has all the pages BEFORE it writes anything —
-      // the "fetch all → one answer" flow. Without this the model interleaves
-      // (fetch → answer page 1 → fetch → answer page 2). The reactive
-      // backstop further down still covers the single-URL / model-driven
-      // cases.
-      if (autoFetchUrls && fetchTool && inputUrls.length >= 2) {
+      // Proactive fetch: when the user's message contains URLs, fetch them
+      // ALL up front, in parallel, BEFORE the model writes anything. The URL
+      // is right there in the input, so fetching it is deterministic — not a
+      // guess — which lets us skip the model's initial "decide to call
+      // fetch_url" planning turn entirely. On-device that turn costs several
+      // seconds of first-token latency per run, so eliminating it is the
+      // biggest single TTFT win for any "summarize this link" prompt. For
+      // multiple URLs it also gives the "fetch all → one answer" flow instead
+      // of the model interleaving (fetch → answer page 1 → fetch → …). The
+      // reactive backstop further down still covers model-driven fetches that
+      // weren't in the original input. Bounded to once per run via
+      // `autoFetchDone`.
+      if (autoFetchUrls && fetchTool && inputUrls.length >= 1) {
         yield { type: "step_start", index: stepIndex };
         const fetchCalls = inputUrls.map((url) => ({
           name: fetchTool.name,
@@ -270,7 +278,18 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
         // The URLs are already fetched; don't let the reactive backstop
         // re-fetch (a CORS failure here would just fail again).
         autoFetchDone = true;
-        turnInput = `${buildToolResultTurn(records, perResultMaxChars)}\n\nUsing ALL the fetched content above, answer the user's request now in ONE reply that covers every URL.`;
+        const closer =
+          inputUrls.length > 1
+            ? "Answer the user's request now in ONE reply that covers every URL."
+            : "Answer the user's request now.";
+        // Fold the user's original message INTO this turn. Because we fetched
+        // eagerly we skipped the model's planning turn — which means the user's
+        // message was never sent on its own. Without it here, the model only
+        // sees raw tool output and "answer the request" with no idea what was
+        // asked, so it summarizes generically and picks fields inconsistently.
+        // Leading with the question keeps answers on-target (e.g. "how many
+        // stars" → the star count), matching the pre-eager model-driven flow.
+        turnInput = `The user asked: ${input}\n\n${buildToolResultTurn(records, perResultMaxChars)}\n\n${closer}`;
         stepIndex++;
       }
 
@@ -310,6 +329,28 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
 
         const calls = parseToolCode(reply, tools);
 
+        // Guard against `summarize_text` misroutes. The small model often
+        // reaches for the summarizer on content-GENERATION requests ("write
+        // an article…", "…max 200 words"), passing it text it just wrote.
+        // Summarization only makes sense when the user actually asked to
+        // condense something OR we fetched a document to condense. When
+        // neither holds and the model's only move is a summarize call, it's a
+        // misroute: skip the wasted (and sometimes failing) tool call and have
+        // the model write the answer directly. Deterministic, bounded once.
+        if (
+          calls.length > 0 &&
+          calls.every((c) => c.name === "summarize_text") &&
+          !userAskedToCondense(input) &&
+          fetchedOk.size === 0 &&
+          !directRetryDone
+        ) {
+          directRetryDone = true;
+          yield { type: "step_end", index: stepIndex };
+          turnInput =
+            "Write the answer yourself directly in plain text now — do NOT call summarize_text or any other tool; just produce the requested content at the requested length.";
+          continue;
+        }
+
         if (calls.length === 0) {
           // Deterministic auto-fetch (NOT a model retry): the user named
           // URLs and the model is finalizing with some still unfetched —
@@ -344,11 +385,30 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
             continue;
           }
 
-          // The model sometimes emits a tool call in a shape we don't
-          // parse — a JSON `{tool_name,…}` object, an invented name, or a
-          // fenceless `fn(args)`. Don't print that raw scaffolding as the
-          // answer; its tool-call format varies run to run, so say so and
-          // suggest a re-run instead of showing code to the user.
+          // Self-heal: the model emitted tool-call-like scaffolding that
+          // didn't parse to a valid call. The small on-device model is primed
+          // to emit `tool_code` (the system prompt teaches the format and
+          // lists tools), so it sometimes reaches for a tool on tasks that
+          // need none — e.g. "write an article" — and botches the syntax.
+          // Rather than punting to the user, give it ONE more turn to answer
+          // directly with no tool. The original request is already in the
+          // session history, so the corrective turn produces the real answer.
+          // Bounded once per run via `directRetryDone`.
+          if (
+            tools.length > 0 &&
+            looksLikeUnparsedToolCall(reply, tools) &&
+            !directRetryDone
+          ) {
+            directRetryDone = true;
+            yield { type: "step_end", index: stepIndex };
+            turnInput =
+              "Answer the user's request directly, in plain text, right now. Do NOT call or mention any tool — just write the full answer yourself.";
+            continue;
+          }
+
+          // After the retry is spent, if it STILL looks like unparsed tool
+          // scaffolding, don't show raw call code to the user — say so and
+          // suggest a re-run.
           let answer: string;
           if (tools.length > 0 && looksLikeUnparsedToolCall(reply, tools)) {
             answer =
@@ -775,6 +835,18 @@ const NOTE_NOT_FETCHED =
   "> ⚠ The agent answered without fetching the page, so it had no real content to work from. This answer is likely fabricated — verify in the transcript that `fetch_url` was actually called.\n\n";
 const NOTE_FETCH_FAILED =
   "> ⚠ The page couldn't be fetched (often CORS on the browser), so the agent had no real content to work from. This answer may be fabricated — verify the tool calls in the transcript.\n\n";
+
+/**
+ * Whether the user's message actually asks to condense/summarize existing
+ * text — the only intent for which `summarize_text` is the right tool. Used
+ * to detect (and skip) summarizer misroutes on generation requests like
+ * "write an article … max 200 words", where the model wrongly reaches for it.
+ */
+function userAskedToCondense(input: string): boolean {
+  return /\b(summar(y|ise|ize|ising|izing)|tl;?dr|tldr|condense|shorten|recap|key\s?points|digest|abridge|gist|brief(er|ly)?)\b/i.test(
+    input,
+  );
+}
 
 /** Extract HTTP(S) URLs from free-text input. Conservative on purpose. */
 function extractUrls(text: string): string[] {

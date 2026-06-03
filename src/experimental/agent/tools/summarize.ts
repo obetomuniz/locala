@@ -27,9 +27,14 @@ interface SummarizeOutput {
 export const summarizeTool: AgentTool<SummarizeInput, SummarizeOutput> = {
   name: "summarize_text",
   description:
-    "Summarize a piece of text using the browser's built-in Summarizer model (on-device). Use when the user asks for a tl;dr, key points, or a headline. Returns an empty summary if the API is unavailable.",
+    "Condense EXISTING text into a shorter form with the browser's built-in Summarizer (on-device). Use ONLY when the user supplies text (or you fetched a document) AND explicitly asks to shorten/summarize it or pull key points from THAT text — pass the real source text in `text`. Do NOT use it to write, generate, compose, draft, or expand new content (e.g. 'write an article/story/post'); produce that yourself directly with no tool. Returns an empty summary if the API is unavailable.",
   readOnly: true,
-  returnDirect: true,
+  // Intentionally NOT `returnDirect`. The summarizer's output is fed back as a
+  // tool result so the model composes the final reply around it. This keeps a
+  // misrouted call (the small model sometimes reaches for it on "write an
+  // article" requests) non-fatal: instead of the short summary short-circuiting
+  // as the whole answer, the loop continues and the model still produces what
+  // was actually asked for.
   inputSchema: {
     type: "object",
     properties: {

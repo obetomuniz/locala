@@ -103,20 +103,149 @@ Why:
 - Avoid one React render per token on fast streams.
 - Reduce perceived stutter without changing run semantics.
 
-## Decision 7: `returnDirect` tool fast-path
+Refinement: the **first** answer token is painted synchronously instead of
+waiting for the next animation frame; subsequent tokens stay coalesced. This
+removes the one frame (~8-16ms) of app-layer delay before the answer begins
+without reintroducing per-token render churn (`useAgent.ts`,
+`hasPaintedFirstText`). The consumed native stream order is never changed —
+deltas are accumulated and flushed in order.
+
+## Decision 7: `returnDirect` tool fast-path (use sparingly)
 
 Tools may opt into returning their output directly as the final response,
 skipping the extra post-tool model synthesis turn.
 
 - Tool metadata: `AgentTool.returnDirect`
 - Loop routing: `resolveDirectReturnText()` in `agent/loop.ts`
-- Current opt-in tool: `summarize_text`
+- Current opt-in tools: none (the mechanism remains for future tools)
+
+Why and the caveat:
+
+- It removes avoidable first-token delay after a tool whose output IS
+  unambiguously the final answer.
+- But it is only safe when the tool can't be *misrouted*. `summarize_text`
+  was opted in originally and we removed it (Decision 9): the small on-device
+  model sometimes calls it for "write an article" requests, and `returnDirect`
+  turned that misroute into a fatal short-circuit — a one-line summary
+  replacing the whole answer. Without `returnDirect`, the summary is fed back
+  as a tool result and the model recovers.
+- Rule of thumb: only set `returnDirect` on tools whose invocation is
+  unambiguous and whose raw output is always an acceptable final answer
+  (e.g. a clipboard read), never on transform tools the model might misapply.
+
+## Decision 8: Eager (deterministic) fetch for URLs in the input
+
+When the user's message contains URLs and a URL-fetching tool is available,
+the loop fetches them all up front — in parallel — before the model writes
+anything, then hands the results to a single answer turn.
+
+- Loop path: the proactive-fetch block in `agent/loop.ts` (guarded by
+  `autoFetchUrls && fetchTool && inputUrls.length >= 1`)
+- Reactive backstop downstream still covers model-driven fetches of URLs that
+  weren't in the original input.
 
 Why:
 
-- Removes avoidable first-token delay after fast deterministic tools.
-- Reduces local inference work and perceived latency.
-- Keeps default reasoning behavior for all non-opt-in tools.
+- The URL is in the input, so fetching it is **deterministic, not
+  speculative** — there's no misprediction risk. It just enforces what the
+  platform system prompt already mandates ("for ANY URL, fetch first").
+- It removes the model's initial "decide to call `fetch_url`" planning turn.
+  On-device, every model turn carries a multi-second first-token cost, so
+  collapsing a URL flow from two turns to one is the biggest TTFT win for
+  "summarize/answer about this link" prompts.
+
+Critical correctness note (regression we hit and fixed): because the eager
+path skips the planning turn, **the user's message is never sent on its own**.
+The synthesis turn must therefore fold the original request in alongside the
+tool results:
+
+```
+turnInput = `The user asked: ${input}\n\n${toolResults}\n\n${closer}`;
+```
+
+Without this, the model only sees raw tool output plus a generic "answer the
+request" and has no idea what was asked — it summarizes generically and picks
+fields inconsistently (e.g. answering "how many stars" with watchers, license,
+topics). Folding the question back in restores the on-target, consistent
+answers of the pre-eager model-driven flow — and does so with **no answer-
+brevity prompt tuning** (see Non-goals).
+
+## Decision 9: Make tool misrouting non-fatal, not prompt-perfect
+
+The small on-device model is *tool-trigger-happy*: the native system prompt
+necessarily lists every tool and teaches the `tool_code` format, which primes
+the model to reach for a tool even on tasks that need none (observed:
+"generate a 300-word article" repeatedly calling `summarize_text`, or emitting
+malformed `tool_code`). Steering this purely with prompt wording is
+unreliable, so the fix is structural — recover from a misroute instead of
+trying to prevent every one:
+
+1. Precise tool descriptions as the routing contract. A tool's `description`
+   defines *when* to call it. `summarize_text` now says "condense EXISTING
+   text the user supplied … do NOT use to write/generate new content"
+   (`tools/summarize.ts`). This reduces misroutes but does not eliminate them.
+2. No `returnDirect` on transform tools (see Decision 7). A misrouted
+   `summarize_text` call returns its output as a tool *result*, so the loop
+   continues and the model still produces the requested content.
+3. One-time self-heal in the loop. When the model emits tool-call-like text
+   that doesn't parse to a valid call, the loop retries ONCE with "answer
+   directly, no tools" instead of showing a canned "re-run" message
+   (`directRetryDone` in `agent/loop.ts`). The original request is already in
+   session history, so the retry produces the real answer.
+4. Deterministic dispatch guard for `summarize_text`. The summarizer is only
+   the right tool when the user asked to condense something OR a document was
+   fetched. When the model's only proposed call is `summarize_text` and
+   neither holds (`userAskedToCondense(input)` is false, `fetchedOk` is
+   empty), the loop SKIPS the call and steers the model to write directly —
+   instead of dispatching a wasted (and sometimes failing) summarize on a
+   "write an article … max 200 words" request. The guard cannot fire on a
+   genuine summarize request, so the legitimate path is untouched.
+
+Why this shape:
+
+- Prompt-only steering of a small model is not robust; defense-in-depth that
+  degrades gracefully is.
+- It keeps the engine native (no scaffolding that fakes output) while making
+  the common failure modes recoverable rather than user-visible.
+
+## Non-goals: rely on native performance, not brute force
+
+Things we deliberately did NOT do, validated by measurement:
+
+- **No throughput hacks.** On-device token rate (~100 ch/s here) and per-turn
+  first-token latency are model/hardware bound. We don't fake tokens,
+  parallelize sessions, or spin up workers to "speed up" generation.
+- **No system-prompt trimming for speed.** Measured a no-op: the warm base
+  session caches the system-prompt prefill, so a tiny prompt (Minimal preset)
+  was no faster to first token than the full tool catalog.
+- **No answer-brevity prompt scaffolding.** Pushing the small model toward
+  terse answers traded away accuracy (dropped or mislabeled the requested
+  fact). The verbosity was a missing-context symptom (Decision 8), not a
+  brevity problem; the post-fetch instruction stays at the plain native
+  default.
+- **No raw-HTML renderer as default** (see Security notes); Flowtoken was
+  evaluated and removed (unmaintained, `rehype-raw` by default, and no
+  measurable speed gain over Streamdown).
+
+The optimizations we kept live only in two layers that don't touch native
+inference: UI render cadence (Decision 6) and agent orchestration (Decisions
+2, 7, 8).
+
+## Measured performance findings (chrome-devtools, on-device)
+
+Reference numbers from instrumented runs, so future work optimizes the right
+thing:
+
+- Session clone acquisition + context probing: **~1ms** (the Decision 2
+  prefetch works; session warmup is not a bottleneck).
+- Render path during streaming: **0 long tasks, 0 jank** — rendering is not
+  the bottleneck; throughput is model-bound.
+- Time-to-first-token is dominated by the model's intrinsic per-turn
+  first-token latency, not app-layer cost. Caveat: absolute TTFT measured via
+  an external driver is inflated by the driver's input latency; trust in-page
+  instrumentation and phase **differences**, not absolute numbers.
+- The on-device model degrades under sustained heavy use (matches the
+  in-app "Reset session" affordance); a page reload does not reset it.
 
 ## Security notes
 

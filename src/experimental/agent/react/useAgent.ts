@@ -189,6 +189,11 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
       // Coalesce token-level text updates to one React render per frame.
       // High token rates (100+ deltas/s) otherwise cause visible stutter.
       let pendingTextDelta = "";
+      // The FIRST answer token is painted synchronously instead of waiting
+      // for the next animation frame — that one frame (~8-16ms) is the only
+      // app-layer latency between the model emitting the first character and
+      // the user seeing the answer begin. Subsequent tokens stay coalesced.
+      let hasPaintedFirstText = false;
       let textFlushHandle: number | null = null;
       let textFlushUsesRaf = false;
       const flushPendingText = () => {
@@ -272,6 +277,7 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
               // clean instead of appending onto stale text.
               cancelTextFlush();
               pendingTextDelta = "";
+              hasPaintedFirstText = false;
               setLiveThought((prev) =>
                 prev && prev.index === ev.index ? null : prev,
               );
@@ -331,6 +337,14 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
             }
             case "text_delta":
               setStatus("streaming");
+              if (!hasPaintedFirstText) {
+                // Paint the first chunk now so the answer starts the moment
+                // the model produces it, with no frame of buffering delay.
+                hasPaintedFirstText = true;
+                const first = ev.delta;
+                setText((prev) => prev + first);
+                break;
+              }
               pendingTextDelta += ev.delta;
               scheduleTextFlush();
               break;
