@@ -29,10 +29,19 @@ import {
   type LanguageModelTool,
   type Session,
 } from "@web-ai-sdk/prompt";
+import {
+  DIRECT_ANSWER_RETRY,
+  filterCallsForDispatch,
+  shouldSteerDirectAnswer,
+} from "./dispatchPolicy";
 import { runDispatcher } from "./dispatcher";
 import { AgentStalledError, AgentUnavailableError } from "./errors";
 import { streamFromGenerator, streamFromResult } from "./events";
+import type { AgentRunContext } from "./runContext";
+import { isEmptySummarizeOutput } from "./tools/summarize";
+import { extractFetchSourceText } from "./summarizeProvenance";
 import { parseToolCode, stripToolCode } from "./toolCode";
+import { extractUrls, normUrl, userUrlSet } from "./urls";
 import type {
   Agent,
   AgentEvent,
@@ -190,6 +199,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     const signal = composeSignals(controller.signal, externalSignal);
 
     const inputUrls = extractUrls(input);
+    const userUrls = userUrlSet(input);
     const fetchTool =
       inputUrls.length > 0 ? findUrlFetchingTool(tools) : undefined;
 
@@ -228,10 +238,21 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     // skipped (it often fetches only the first of several) and flag failures.
     const fetchedOk = new Set<string>();
     const fetchTried = new Set<string>();
+    /** Extracted bodies from successful fetches — provenance for summarize_text. */
+    const fetchedSources: string[] = [];
+    const runCtx: AgentRunContext = {
+      userInput: input,
+      userUrls,
+      fetchedSources,
+    };
     let autoFetchDone = false;
     // Guards the one-time "answer directly, no tools" self-heal below.
     let directRetryDone = false;
     const recordFetches = (records: AgentToolCallRecord[]) => {
+      for (const r of records) {
+        const src = extractFetchSourceText(r);
+        if (src) fetchedSources.push(src);
+      }
       if (!fetchTool) return;
       for (const r of records) {
         if (r.name !== fetchTool.name) continue;
@@ -327,27 +348,13 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
           break;
         }
 
-        const calls = parseToolCode(reply, tools);
+        const proposed = parseToolCode(reply, tools);
+        const calls = filterCallsForDispatch(proposed, tools, runCtx);
 
-        // Guard against `summarize_text` misroutes. The small model often
-        // reaches for the summarizer on content-GENERATION requests ("write
-        // an article…", "…max 200 words"), passing it text it just wrote.
-        // Summarization only makes sense when the user actually asked to
-        // condense something OR we fetched a document to condense. When
-        // neither holds and the model's only move is a summarize call, it's a
-        // misroute: skip the wasted (and sometimes failing) tool call and have
-        // the model write the answer directly. Deterministic, bounded once.
-        if (
-          calls.length > 0 &&
-          calls.every((c) => c.name === "summarize_text") &&
-          !userAskedToCondense(input) &&
-          fetchedOk.size === 0 &&
-          !directRetryDone
-        ) {
+        if (shouldSteerDirectAnswer(proposed, calls) && !directRetryDone) {
           directRetryDone = true;
           yield { type: "step_end", index: stepIndex };
-          turnInput =
-            "Write the answer yourself directly in plain text now — do NOT call summarize_text or any other tool; just produce the requested content at the requested length.";
+          turnInput = DIRECT_ANSWER_RETRY;
           continue;
         }
 
@@ -401,8 +408,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
           ) {
             directRetryDone = true;
             yield { type: "step_end", index: stepIndex };
-            turnInput =
-              "Answer the user's request directly, in plain text, right now. Do NOT call or mention any tool — just write the full answer yourself.";
+            turnInput = DIRECT_ANSWER_RETRY;
             continue;
           }
 
@@ -459,7 +465,25 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
           stepIndex,
           signal,
         });
-        const directText = resolveDirectReturnText(calls, records, tools);
+
+        // Summarizer returned `{ summary: "" }` (availability race). The next
+        // model turn will summarize in prose — drop the empty tool card so the
+        // transcript does not look like the tool succeeded with no output.
+        const summarizeOnlyEmpty =
+          calls.length === 1 &&
+          calls[0].name === "summarize_text" &&
+          records[0] &&
+          !records[0].error &&
+          isEmptySummarizeOutput(records[0].output);
+        if (summarizeOnlyEmpty) {
+          yield { type: "step_reset", index: stepIndex };
+          yield { type: "step_end", index: stepIndex };
+          turnInput =
+            "The on-device Summarizer returned no text. Summarize the user's source yourself in plain text now — do not call summarize_text or any other tool.";
+          continue;
+        }
+
+        const directText = resolveDirectReturnText(calls, records, tools, runCtx);
         if (directText !== null) {
           finalText = directText;
           steps.push({
@@ -744,8 +768,19 @@ function buildToolResultTurn(
         : { output: truncateForContext(r.output, maxChars) }),
     }),
   );
+  const unavailableSummarize = records.some(
+    (r) =>
+      r.name === "summarize_text" &&
+      !r.error &&
+      r.output &&
+      typeof r.output === "object" &&
+      !(r.output as { summary?: string }).summary?.trim(),
+  );
+  const preamble = unavailableSummarize
+    ? "Tool results (summarize_text returned no summary — the Summarizer API was unavailable; summarize the source yourself in plain text):\n"
+    : "Tool results:\n";
   return [
-    "Tool results:",
+    preamble,
     ...lines,
     // Fetch-all → one answer: if other URLs the user mentioned aren't
     // fetched yet, fetch them first; once everything is in, write a single
@@ -763,6 +798,7 @@ function resolveDirectReturnText(
   calls: ReadonlyArray<{ name: string; input: Record<string, unknown> }>,
   records: readonly AgentToolCallRecord[],
   tools: readonly AgentTool[],
+  ctx: AgentRunContext,
 ): string | null {
   if (calls.length !== 1 || records.length !== 1) return null;
   const call = calls[0];
@@ -770,7 +806,11 @@ function resolveDirectReturnText(
   if (record.error) return null;
 
   const tool = tools.find((t) => t.name === call.name);
-  if (!tool?.returnDirect) return null;
+  if (!tool) return null;
+  const useDirect =
+    tool.returnDirect === true ||
+    tool.returnDirectIf?.(call.input, record.output, ctx) === true;
+  if (!useDirect) return null;
 
   return directOutputToText(record.output, tool.name);
 }
@@ -835,29 +875,6 @@ const NOTE_NOT_FETCHED =
   "> ⚠ The agent answered without fetching the page, so it had no real content to work from. This answer is likely fabricated — verify in the transcript that `fetch_url` was actually called.\n\n";
 const NOTE_FETCH_FAILED =
   "> ⚠ The page couldn't be fetched (often CORS on the browser), so the agent had no real content to work from. This answer may be fabricated — verify the tool calls in the transcript.\n\n";
-
-/**
- * Whether the user's message actually asks to condense/summarize existing
- * text — the only intent for which `summarize_text` is the right tool. Used
- * to detect (and skip) summarizer misroutes on generation requests like
- * "write an article … max 200 words", where the model wrongly reaches for it.
- */
-function userAskedToCondense(input: string): boolean {
-  return /\b(summar(y|ise|ize|ising|izing)|tl;?dr|tldr|condense|shorten|recap|key\s?points|digest|abridge|gist|brief(er|ly)?)\b/i.test(
-    input,
-  );
-}
-
-/** Extract HTTP(S) URLs from free-text input. Conservative on purpose. */
-function extractUrls(text: string): string[] {
-  const matches = text.match(/https?:\/\/[^\s<>'"`]+/g);
-  return matches ? Array.from(new Set(matches)) : [];
-}
-
-/** Normalize a URL for matching (trailing slash / trailing punctuation). */
-function normUrl(u: string): string {
-  return u.trim().replace(/[).,;]+$/, "").replace(/\/+$/, "");
-}
 
 /**
  * Whether a fetch-tool call actually retrieved the page. A CORS / network

@@ -271,10 +271,9 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
               break;
             case "step_end":
               break;
-            case "step_reset":
-              // A stalled attempt is being retried — discard the partial
-              // thought/answer it streamed so the fresh attempt starts
-              // clean instead of appending onto stale text.
+            case "step_reset": {
+              // Retry or empty summarize fallback — discard partial UI for
+              // this step (including tool cards that should not stay visible).
               cancelTextFlush();
               pendingTextDelta = "";
               hasPaintedFirstText = false;
@@ -282,7 +281,13 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
                 prev && prev.index === ev.index ? null : prev,
               );
               setText("");
+              const step = stepsByIndex.get(ev.index);
+              if (step) {
+                step.toolCalls = [];
+                step.plan = { ...step.plan, toolCalls: undefined };
+              }
               break;
+            }
             case "plan_delta":
               break;
             case "thought_delta":

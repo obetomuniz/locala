@@ -8,6 +8,14 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 .agentp {
+  /* Full-card error/warn surfaces (not border-only accents). */
+  --agentp-danger-surface: color-mix(in srgb, var(--danger) 18%, var(--bg-elev));
+  --agentp-danger-border: color-mix(in srgb, var(--danger) 42%, transparent);
+  --agentp-danger-text: color-mix(in srgb, var(--danger) 72%, var(--text));
+  --agentp-warn-surface: color-mix(in srgb, var(--warn) 18%, var(--bg-elev));
+  --agentp-warn-border: color-mix(in srgb, var(--warn) 42%, transparent);
+  --agentp-warn-text: color-mix(in srgb, var(--warn) 78%, var(--text));
+
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -693,19 +701,20 @@
 }
 
 .agentp__banner {
-  background: var(--bg-elev);
-  border-left: 2px solid var(--warn);
+  background: var(--agentp-warn-surface);
+  border: 1px solid var(--agentp-warn-border);
   border-radius: var(--radius-sm);
   padding: 12px 16px;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--agentp-warn-text);
   box-shadow: var(--shadow-raised-sm);
   margin-bottom: 10px;
 }
 
 .agentp__banner--error {
-  border-left-color: var(--danger);
-  color: var(--text);
+  background: var(--agentp-danger-surface);
+  border-color: var(--agentp-danger-border);
+  color: var(--agentp-danger-text);
 }
 
 /* Transcript: a boxless activity feed (à la Claude Code) — thinking +
@@ -731,6 +740,20 @@
   animation: msg-in 220ms var(--ease);
 }
 
+.agentp__answer-block--warn,
+.agentp__answer-block--error {
+  background: var(--agentp-warn-surface);
+  border: 1px solid var(--agentp-warn-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-raised-sm);
+}
+
+.agentp__answer-block--error {
+  background: var(--agentp-danger-surface);
+  border-color: var(--agentp-danger-border);
+}
+
 .agentp__answer-head {
   display: flex;
   align-items: center;
@@ -743,6 +766,14 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent);
+}
+
+.agentp__answer-block--warn .agentp__answer-label {
+  color: var(--warn);
+}
+
+.agentp__answer-block--error .agentp__answer-label {
+  color: var(--danger);
 }
 
 /* "Thinking…" indicator shown while the model is generating but nothing
@@ -843,8 +874,46 @@
   box-shadow: var(--shadow-focus);
 }
 
+.agentp__tool-card--warn {
+  background: var(--agentp-warn-surface);
+  border: 1px solid var(--agentp-warn-border);
+  box-shadow:
+    var(--shadow-raised-sm),
+    0 0 0 1px color-mix(in srgb, var(--warn) 12%, transparent);
+}
+
+.agentp__tool-card--warn .agentp__tool-card-name,
+.agentp__tool-card--warn .agentp__tool-card-summary {
+  color: var(--agentp-warn-text);
+}
+
+.agentp__tool-card-status--warn {
+  color: var(--warn);
+}
+
 .agentp__tool-card--error {
-  border-left: 2px solid var(--danger);
+  background: var(--agentp-danger-surface);
+  border: 1px solid var(--agentp-danger-border);
+  box-shadow:
+    var(--shadow-raised-sm),
+    0 0 0 1px color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.agentp__tool-card--error .agentp__tool-card-name {
+  color: var(--agentp-danger-text);
+}
+
+.agentp__tool-card--error .agentp__tool-card-summary {
+  color: var(--agentp-danger-text);
+}
+
+.agentp__tool-card--error .agentp__tool-progress {
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg));
+}
+
+.agentp__tool-card--error .agentp__tool-card-json {
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg));
+  color: var(--agentp-danger-text);
 }
 
 .agentp__tool-card-head {
@@ -974,8 +1043,34 @@
   box-shadow: var(--shadow-focus);
 }
 
+.agentp__tool-item--warn {
+  background: var(--agentp-warn-surface);
+  border: 1px solid var(--agentp-warn-border);
+}
+
+.agentp__tool-item--warn .agentp__tool-item-name,
+.agentp__tool-item--warn .agentp__tool-item-body code {
+  color: var(--agentp-warn-text);
+}
+
 .agentp__tool-item--error {
-  border-left: 2px solid var(--danger);
+  background: var(--agentp-danger-surface);
+  border: 1px solid var(--agentp-danger-border);
+  box-shadow:
+    var(--shadow-raised-sm),
+    0 0 0 1px color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.agentp__tool-item--error .agentp__tool-item-name {
+  color: var(--agentp-danger-text);
+}
+
+.agentp__tool-item--error .agentp__tool-item-status {
+  color: var(--danger);
+}
+
+.agentp__tool-item--error .agentp__tool-item-body code {
+  color: var(--agentp-danger-text);
 }
 
 .agentp__tool-item-head {
@@ -1013,6 +1108,18 @@
 }
 
 /* Markdown-rendered answer */
+
+/* URL / fetch disclaimers render as markdown blockquotes (⚠ …). */
+.agentp__answer-md .md blockquote,
+.agentp__streamdown blockquote {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  background: var(--agentp-warn-surface);
+  border: 1px solid var(--agentp-warn-border);
+  border-radius: var(--radius-sm);
+  color: var(--agentp-warn-text);
+  box-shadow: var(--shadow-raised-sm);
+}
 
 .agentp__answer-md {
   font-size: 14px;
@@ -1178,13 +1285,6 @@
   color: var(--text-faint);
 }
 
-.agentp__streamdown blockquote {
-  margin: 8px 0;
-  padding: 2px 0 2px 12px;
-  border-left: 2px solid var(--border-strong, rgba(255, 255, 255, 0.06));
-  color: var(--text-muted);
-}
-
 .agentp__streamdown a {
   color: var(--accent);
   text-decoration: underline;
@@ -1223,6 +1323,35 @@
   font-family:
     ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
   padding: 6px 2px 0;
+}
+
+.agentp__stop--warn,
+.agentp__stop--error {
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  box-shadow: var(--shadow-raised-sm);
+}
+
+.agentp__stop--warn {
+  background: var(--agentp-warn-surface);
+  border: 1px solid var(--agentp-warn-border);
+  color: var(--agentp-warn-text);
+}
+
+.agentp__stop--error {
+  background: var(--agentp-danger-surface);
+  border: 1px solid var(--agentp-danger-border);
+  color: var(--agentp-danger-text);
+}
+
+.agentp__stop--warn code,
+.agentp__stop--error code {
+  color: inherit;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 /* Composer — same shape as locala's `.composer` */

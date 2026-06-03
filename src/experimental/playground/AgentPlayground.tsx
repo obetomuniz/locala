@@ -114,6 +114,7 @@ export function AgentPlayground({ onClose }: Props) {
                 <button
                   key={p.id}
                   type="button"
+                  data-preset-id={p.id}
                   className={`agentp__preset${
                     p.id === presetId ? " agentp__preset--active" : ""
                   }`}
@@ -272,6 +273,7 @@ export function AgentPlayground({ onClose }: Props) {
                   <button
                     type="submit"
                     className="agentp__btn agentp__btn--send"
+                    data-testid="agent-run"
                     disabled={!promptOn || !draft.trim()}
                   >
                     Run

@@ -26,8 +26,24 @@ export function resolveToolRenderer(id?: ToolRendererId): ToolRendererComponent 
   return id ? renderers[id] : renderers.default;
 }
 
+function resolveToolCardStatus(
+  tool: TranscriptToolFrame,
+): "calling" | "ok" | "error" | "warn" {
+  if (tool.pending) return "calling";
+  if (tool.error) return "error";
+  if (
+    tool.name === "summarize_text" &&
+    tool.output &&
+    typeof tool.output === "object" &&
+    !(tool.output as { summary?: string }).summary?.trim()
+  ) {
+    return "warn";
+  }
+  return "ok";
+}
+
 function DefaultToolRenderer({ tool }: ToolRendererProps) {
-  const status = tool.pending ? "calling" : tool.error ? "error" : "ok";
+  const status = resolveToolCardStatus(tool);
 
   return (
     <li className={`agentp__tool-card agentp__tool-card--${status}`}>
@@ -38,6 +54,7 @@ function DefaultToolRenderer({ tool }: ToolRendererProps) {
         >
           {status === "calling" && "calling..."}
           {status === "ok" && `${Math.round(tool.durationMs ?? 0)}ms`}
+          {status === "warn" && "unavailable"}
           {status === "error" && "error"}
         </span>
       </header>
@@ -66,7 +83,9 @@ function DefaultToolRenderer({ tool }: ToolRendererProps) {
           <summary className="agentp__tool-card-summary">
             {tool.error
               ? `error · ${truncate(tool.error.message, 80)}`
-              : `output · ${summarizeJson(tool.output)}`}
+              : status === "warn"
+                ? "summarizer unavailable · answered below"
+                : `output · ${summarizeJson(tool.output)}`}
           </summary>
           <pre className="agentp__tool-card-json">
             {tool.error ? formatError(tool.error) : JSON.stringify(tool.output, null, 2)}
@@ -78,13 +97,15 @@ function DefaultToolRenderer({ tool }: ToolRendererProps) {
 }
 
 function MinimalToolRenderer({ tool }: ToolRendererProps) {
-  const status = tool.pending ? "calling" : tool.error ? "error" : "ok";
+  const status = resolveToolCardStatus(tool);
   const statusText =
     status === "calling"
       ? "running"
       : status === "error"
         ? "error"
-        : `${Math.round(tool.durationMs ?? 0)}ms`;
+        : status === "warn"
+          ? "unavailable"
+          : `${Math.round(tool.durationMs ?? 0)}ms`;
   const outputLine = tool.error
     ? `error: ${truncate(tool.error.message, 120)}`
     : tool.pending

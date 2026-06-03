@@ -23,6 +23,8 @@
  * inject its own fetcher (auth, retry, rate limits).
  */
 
+import type { AgentRunContext } from "../runContext";
+import { normUrl } from "../urls";
 import type { AgentTool } from "../types";
 
 interface FetchInput {
@@ -69,6 +71,11 @@ export function createFetchUrlTool(
     description:
       "Fetch a URL via HTTPS GET. JSON responses come back parsed (use for APIs like api.github.com). HTML pages (blog posts, articles, docs) come back as clean reading text — headings, paragraphs, lists, plus a `Sections:` outline — with the markup stripped, so you can actually answer questions about the page contents. Bounded by the browser's same-origin policy: only works on origins that send `Access-Control-Allow-Origin`. Refuses non-HTTP(S) schemes.",
     readOnly: true,
+    acceptCall(input: Record<string, unknown>, ctx: AgentRunContext): boolean {
+      const url = typeof input.url === "string" ? input.url : "";
+      if (!url.trim() || ctx.userUrls.size === 0) return false;
+      return ctx.userUrls.has(normUrl(url));
+    },
     inputSchema: {
       type: "object",
       properties: { url: { type: "string" } },

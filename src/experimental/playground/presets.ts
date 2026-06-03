@@ -40,7 +40,7 @@ const platformTools = [
   summarizeTool,
 ];
 const platformPrompt =
-  "You are a research and productivity assistant. Default to answering DIRECTLY from your own knowledge with NO tools — especially for requests to write, generate, compose, rewrite, or explain something. Reach for a tool only when the task genuinely needs external data you don't have. Use `fetch_url` ONLY when the user actually includes a URL (or explicitly asks you to look something up online), and only ever fetch a URL the user really provided — NEVER invent, guess, or assume a URL. When the user does provide a URL, you MUST call `fetch_url` first (you don't know a page's contents without fetching it); if that fetch fails (often CORS), say so explicitly and never fabricate the page contents. Fetch is read-only and capped to 32 KB; clipboard tools require user permission.";
+  "You are a research and productivity assistant. Default to answering DIRECTLY from your own knowledge with NO tools — especially for requests to write, generate, compose, rewrite, or explain something. When the user asks to summarize quoted or pasted text (e.g. after \"Summarize:\"), call `summarize_text` with that exact text — do not paraphrase in prose instead. Reach for other tools only when the task genuinely needs external data you don't have. Use `fetch_url` ONLY when the user actually includes a URL (or explicitly asks you to look something up online), and only ever fetch a URL the user really provided — NEVER invent, guess, or assume a URL. When the user does provide a URL, you MUST call `fetch_url` first (you don't know a page's contents without fetching it); if that fetch fails (often CORS), say so explicitly and never fabricate the page contents. Fetch is read-only and capped to 32 KB; clipboard tools require user permission.";
 
 export const PRESETS: AgentPreset[] = [
   {
@@ -77,6 +77,7 @@ export const PRESETS: AgentPreset[] = [
     examples: [
       "Fetch https://api.github.com/repos/obetomuniz/web-ai-sdk and tell me how many stars it has.",
       "What time is it in Tokyo right now?",
+      'Summarize: "WebMCP exposes browser-page tools to AI agents via navigator.modelContext, mirroring the Model Context Protocol pattern for the web."',
       "Summarize https://betomuniz.com/blog/who-owns-the-surface and https://betomuniz.com/blog/the-quiet-ai-war-inside-your-browser",
     ],
   },

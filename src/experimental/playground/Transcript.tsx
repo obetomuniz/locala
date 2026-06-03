@@ -136,6 +136,12 @@ function build(events: AgentEvent[]): BuiltTranscript {
   return { steps, hasStreamedText };
 }
 
+function stopTone(reason: AgentStopReason | null): "error" | "warn" | null {
+  if (!reason || reason === "done") return null;
+  if (reason === "budget_exhausted") return "warn";
+  return "error";
+}
+
 export function Transcript({
   events,
   text,
@@ -158,6 +164,8 @@ export function Transcript({
   const showThinking = busy && !text && !anyToolPending;
   const thinkingLabel = hasSettledTool ? "Drafting answer…" : "Thinking…";
   const waitSeconds = useElapsedSeconds(showThinking);
+
+  const tone = stopTone(stopReason);
 
   const empty = steps.length === 0 && !text;
   if (empty) {
@@ -226,7 +234,9 @@ export function Transcript({
       )}
 
       {(text || hasStreamedText || stopReason) && (
-        <article className="agentp__answer-block">
+        <article
+          className={`agentp__answer-block${tone ? ` agentp__answer-block--${tone}` : ""}`}
+        >
           {stopReason && stopReason !== "done" && (
             <div className="agentp__answer-head">
               <span className="agentp__answer-label">{stopReason}</span>
@@ -251,7 +261,9 @@ export function Transcript({
       )}
 
       {stopReason && stopReason !== "done" && (
-        <footer className="agentp__stop">
+        <footer
+          className={`agentp__stop${tone ? ` agentp__stop--${tone}` : ""}`}
+        >
           stopped: <code>{stopReason}</code>
         </footer>
       )}

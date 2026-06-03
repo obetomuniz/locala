@@ -1346,23 +1346,27 @@ code {
 /* banner ─────────────────────────────────────────────────────────────────── */
 
 .banner {
-  background: var(--bg-elev);
-  border-left: 2px solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 18%, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, var(--warn) 42%, transparent);
   border-radius: var(--radius-sm);
   padding: 12px 16px;
   font-size: 13px;
+  color: color-mix(in srgb, var(--warn) 78%, var(--text));
   box-shadow: var(--shadow-raised-sm);
   animation: msg-in 240ms var(--ease);
 }
 
 .banner p {
   margin: 6px 0 0;
-  color: var(--text-muted);
+  color: inherit;
+  opacity: 0.92;
   line-height: 1.5;
 }
 
 .banner--error {
-  border-left-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 18%, var(--bg-elev));
+  border-color: color-mix(in srgb, var(--danger) 42%, transparent);
+  color: color-mix(in srgb, var(--danger) 72%, var(--text));
 }
 
 /* workspace ──────────────────────────────────────────────────────────────── */

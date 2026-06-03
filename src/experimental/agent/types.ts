@@ -39,6 +39,8 @@ export type AgentToolOutput = unknown;
  * decoding… done in 220ms" without each tool inventing its own event
  * shape.
  */
+import type { AgentRunContext } from "./runContext";
+
 export interface AgentToolContext {
   /** Composite abort signal: agent-level abort OR caller-supplied signal. */
   readonly signal: AbortSignal;
@@ -69,11 +71,27 @@ export interface AgentTool<
   destructive?: boolean;
   validate?: boolean;
   /**
+   * Optional dispatch gate: return false to skip this call before
+   * `execute` (structured input + per-run context only — no regex on the
+   * user message in the loop). See `runContext.ts` and `dispatchPolicy.ts`.
+   */
+  acceptCall?(input: Record<string, unknown>, ctx: AgentRunContext): boolean;
+  /**
    * End the run by returning this tool's output directly (skip the
    * post-tool synthesis model turn). Use for deterministic tools whose
    * output is already user-facing.
    */
   returnDirect?: boolean;
+  /**
+   * Skip the post-tool model turn when this returns true (single-call
+   * batch only). Safer than always-on `returnDirect` for tools that can
+   * misroute but succeed when inputs are valid.
+   */
+  returnDirectIf?(
+    input: Record<string, unknown>,
+    output: unknown,
+    ctx: AgentRunContext,
+  ): boolean;
   /**
    * Method-shorthand (not arrow-property) on purpose: TypeScript
    * `strictFunctionTypes` makes function-typed properties contravariant

@@ -9,6 +9,8 @@ import {
   isAvailable as isSummarizerAvailable,
   summarize,
 } from "@web-ai-sdk/summarizer";
+import { summarizeTextHasKnownSource } from "../summarizeProvenance";
+import type { AgentRunContext } from "../runContext";
 import type { AgentTool } from "../types";
 
 interface SummarizeInput {
@@ -24,17 +26,32 @@ interface SummarizeOutput {
   cached: boolean;
 }
 
+/** True when the tool ran but produced no summary (unavailable / race). */
+export function isEmptySummarizeOutput(output: unknown): boolean {
+  if (!output || typeof output !== "object") return true;
+  return !(output as SummarizeOutput).summary?.trim();
+}
+
 export const summarizeTool: AgentTool<SummarizeInput, SummarizeOutput> = {
   name: "summarize_text",
   description:
-    "Condense EXISTING text into a shorter form with the browser's built-in Summarizer (on-device). Use ONLY when the user supplies text (or you fetched a document) AND explicitly asks to shorten/summarize it or pull key points from THAT text — pass the real source text in `text`. Do NOT use it to write, generate, compose, draft, or expand new content (e.g. 'write an article/story/post'); produce that yourself directly with no tool. Returns an empty summary if the API is unavailable.",
+    "Condense EXISTING text into a shorter form with the browser's built-in Summarizer (on-device). The `text` argument MUST be copied from text the user pasted in their message or from a successful fetch_url result in this conversation — never text you just generated. Use when the user wants a shorter form or key points from that source. Do NOT use to write, generate, compose, draft, or expand new content; produce that yourself with no tool. Returns an empty summary if the API is unavailable.",
   readOnly: true,
-  // Intentionally NOT `returnDirect`. The summarizer's output is fed back as a
-  // tool result so the model composes the final reply around it. This keeps a
-  // misrouted call (the small model sometimes reaches for it on "write an
-  // article" requests) non-fatal: instead of the short summary short-circuiting
-  // as the whole answer, the loop continues and the model still produces what
-  // was actually asked for.
+  acceptCall(input: Record<string, unknown>, ctx: AgentRunContext): boolean {
+    if (!isSummarizerAvailable()) return false;
+    return summarizeTextHasKnownSource(
+      String(input.text ?? ""),
+      ctx.userInput,
+      ctx.fetchedSources,
+    );
+  },
+  // When the summarizer returns text, finish with that summary only (no second
+  // model paraphrase). If it returns empty (unavailable), the loop continues
+  // so the planner can summarize in prose. Misroutes are blocked by acceptCall.
+  returnDirectIf(_input, output) {
+    const summary = (output as SummarizeOutput)?.summary?.trim();
+    return summary.length > 0;
+  },
   inputSchema: {
     type: "object",
     properties: {
@@ -49,14 +66,20 @@ export const summarizeTool: AgentTool<SummarizeInput, SummarizeOutput> = {
     if (!isSummarizerAvailable()) {
       return { summary: "", cached: false };
     }
-    const result = await summarize({
-      input: text,
-      type,
-      length,
-      language: "en",
-      format: "plain-text",
-      signal,
-    });
-    return { summary: result.output ?? "", cached: result.cached };
+    try {
+      const result = await summarize({
+        input: text,
+        type,
+        length,
+        language: "en",
+        format: "plain-text",
+        signal,
+      });
+      return { summary: result.output ?? "", cached: result.cached };
+    } catch {
+      // `isAvailable()` can be true while a later call fails (warm-up race).
+      // Never surface SDK errors as tool failures — same as unavailable.
+      return { summary: "", cached: false };
+    }
   },
 };

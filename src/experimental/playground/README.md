@@ -192,14 +192,13 @@ trying to prevent every one:
    directly, no tools" instead of showing a canned "re-run" message
    (`directRetryDone` in `agent/loop.ts`). The original request is already in
    session history, so the retry produces the real answer.
-4. Deterministic dispatch guard for `summarize_text`. The summarizer is only
-   the right tool when the user asked to condense something OR a document was
-   fetched. When the model's only proposed call is `summarize_text` and
-   neither holds (`userAskedToCondense(input)` is false, `fetchedOk` is
-   empty), the loop SKIPS the call and steers the model to write directly —
-   instead of dispatching a wasted (and sometimes failing) summarize on a
-   "write an article … max 200 words" request. The guard cannot fire on a
-   genuine summarize request, so the legitimate path is untouched.
+4. Per-tool `acceptCall` dispatch gates (`dispatchPolicy.ts`). Routing intent
+   stays in each tool's JSON Schema `description`; the loop filters proposed
+   calls through `tool.acceptCall(input, runCtx)` only. Examples:
+   `summarize_text` requires `text` provenance from the user message or a
+   fetch this run; `fetch_url` requires a URL the user actually named. When
+   every proposed call is rejected, one `DIRECT_ANSWER_RETRY` turn runs — no
+   tool-specific branches in `loop.ts`.
 
 Why this shape:
 
