@@ -27,6 +27,7 @@ import type {
   AgentStep,
   AgentStopReason,
   AgentStream,
+  AgentTurn,
   AgentTool,
   CreateAgentOptions,
 } from "../types";
@@ -49,6 +50,8 @@ export interface UseAgentOptions extends CreateAgentOptions {
    * bounds the React state slice.
    */
   eventLimit?: number;
+  /** Called when a run completes so hosts can persist it as a thread turn. */
+  onTurnComplete?: (turn: AgentTurn) => void;
 }
 
 /** The thought currently being streamed, with the step it belongs to. */
@@ -65,6 +68,7 @@ export interface UseAgentReturn {
   events: AgentEvent[];
   stopReason: AgentStopReason | null;
   error: Error | null;
+  isStreamingTurn: boolean;
   run: (input: string) => Promise<void>;
   /** Lower-level alternative to `run`: returns the underlying stream. */
   getStream: (input: string) => AgentStream;
@@ -72,6 +76,7 @@ export interface UseAgentReturn {
   /** Clear the conversation session so the next run starts fresh. */
   newSession: () => void;
   reset: () => void;
+  clearStreamingTurn: () => void;
   /** Apply a fixed A2UI surface without calling the model (playground demos). */
   previewA2ui: (messages: readonly A2uiServerMessage[]) => void;
 }
@@ -100,6 +105,7 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
     options.maxSteps,
     options.samplingMode,
     options.language,
+    options.sessionMode,
     options.onToolError,
     options.tools,
     options.a2ui?.enabled,
@@ -142,6 +148,16 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
     setError(null);
   }, [promptAvailable]);
 
+  const clearStreamingTurn = useCallback(() => {
+    setText("");
+    setA2uiSnapshot(createEmptyA2uiSnapshot());
+    setLiveThought(null);
+    setSteps(EMPTY_STEPS);
+    setEvents(EMPTY_EVENTS);
+    setStopReason(null);
+    setError(null);
+  }, []);
+
   const abort = useCallback(() => {
     if (!runningRef.current) return;
     // True STOP, not a reset: freeze the UI on the partial output right
@@ -163,14 +179,9 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
   // prior answers from session memory otherwise).
   const newSession = useCallback(() => {
     agentRef.current?.newSession();
-    setStatus(promptAvailable ? "idle" : "unavailable");
-    setText("");
-    setA2uiSnapshot(createEmptyA2uiSnapshot());
-    setSteps(EMPTY_STEPS);
-    setEvents(EMPTY_EVENTS);
-    setStopReason(null);
-    setError(null);
-  }, [promptAvailable]);
+      setStatus(promptAvailable ? "idle" : "unavailable");
+      clearStreamingTurn();
+  }, [clearStreamingTurn, promptAvailable]);
 
   const previewA2ui = useCallback(
     (messages: readonly A2uiServerMessage[]) => {
@@ -232,16 +243,12 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
       runningRef.current = true;
       abortedRef.current = false;
       setStatus("planning");
-      setText("");
-      setA2uiSnapshot(createEmptyA2uiSnapshot());
-      setLiveThought(null);
-      setSteps(EMPTY_STEPS);
+      clearStreamingTurn();
       setEvents([]);
-      setStopReason(null);
-      setError(null);
 
       const eventBuffer: AgentEvent[] = [];
       const stepsByIndex = new Map<number, AgentStep>();
+      let currentA2uiSnapshot = createEmptyA2uiSnapshot();
       // Coalesce token-level text updates to one React render per frame.
       // High token rates (100+ deltas/s) otherwise cause visible stutter.
       let pendingTextDelta = "";
@@ -347,7 +354,11 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
             }
             case "a2ui_message":
               setStatus("streaming");
-              setA2uiSnapshot((prev) => applyA2uiMessage(prev, ev.message));
+              currentA2uiSnapshot = applyA2uiMessage(
+                currentA2uiSnapshot,
+                ev.message,
+              );
+              setA2uiSnapshot(currentA2uiSnapshot);
               break;
             case "plan_delta":
               break;
@@ -426,7 +437,17 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
               break;
             case "done":
               setLiveThought(null);
-              setSteps(Array.from(stepsByIndex.values()));
+              {
+                const completedSteps = Array.from(stepsByIndex.values());
+                setSteps(completedSteps);
+                optionsRef.current.onTurnComplete?.({
+                  userInput: input,
+                  assistantText: ev.text,
+                  steps: completedSteps,
+                  stopReason: ev.reason,
+                  a2uiSnapshot: currentA2uiSnapshot,
+                });
+              }
               setStopReason(ev.reason);
               setStatus(
                 ev.reason === "aborted"
@@ -450,9 +471,13 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
         cancelTextFlush();
         flushPendingText();
         runningRef.current = false;
+        if (optionsRef.current.sessionMode === "thread") {
+          clearStreamingTurn();
+          setStatus(promptAvailable ? "idle" : "unavailable");
+        }
       }
     },
-    [promptAvailable, eventLimit],
+    [clearStreamingTurn, promptAvailable, eventLimit],
   );
 
   return {
@@ -464,11 +489,13 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
     events,
     stopReason,
     error,
+    isStreamingTurn: runningRef.current,
     run,
     getStream,
     abort,
     newSession,
     reset,
+    clearStreamingTurn,
     previewA2ui,
   };
 }

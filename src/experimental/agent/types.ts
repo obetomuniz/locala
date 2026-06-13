@@ -1,5 +1,5 @@
 import type { LanguageModelSamplingMode } from "@web-ai-sdk/prompt";
-import type { A2uiServerMessage } from "./a2ui/types";
+import type { A2uiServerMessage, A2uiSnapshot } from "./a2ui/types";
 
 /**
  * Public types for the experimental agent loop prototype.
@@ -142,6 +142,29 @@ export interface AgentRunResult {
   stopReason: AgentStopReason;
 }
 
+/** Serializable result of one agent run — host apps persist these in a thread. */
+export interface AgentTurn {
+  userInput: string;
+  assistantText: string;
+  steps: AgentStep[];
+  stopReason: AgentStopReason | null;
+  a2uiSnapshot?: A2uiSnapshot;
+}
+
+export function toAgentTurn(
+  userInput: string,
+  result: AgentRunResult,
+  extras: { a2uiSnapshot?: A2uiSnapshot } = {},
+): AgentTurn {
+  return {
+    userInput,
+    assistantText: result.text,
+    steps: result.steps,
+    stopReason: result.stopReason,
+    ...extras,
+  };
+}
+
 /**
  * Structured view of one planning turn, derived from the model's native
  * `tool_code` output (parsed by `toolCode.ts`). Surfaced as `plan` events
@@ -271,6 +294,13 @@ export interface CreateAgentOptions {
   maxSteps?: number;
   samplingMode?: LanguageModelSamplingMode;
   language?: string;
+  /**
+   * `run-isolated` (default): clone (or create) a fresh session per run,
+   * destroy when the run ends. Good for one-shot tasks.
+   * `thread`: reuse one conversation session across runs until
+   * `newSession()` / `destroy()`. Native history carries prior turns.
+   */
+  sessionMode?: "run-isolated" | "thread";
   onToolError?: AgentOnToolErrorPolicy;
   /**
    * When the user's input references a URL and a URL-fetching tool is

@@ -1,17 +1,17 @@
 # locala
 
-Local chats in your browser. On-device chat using the Web Built-in AI APIs, with zero round-trips to a backend.
+Local agents in your browser. On-device agent threads using the Web Built-in AI APIs, with zero round-trips to a backend.
 
 - All inference runs on-device via `navigator.LanguageModel` (Chrome / Edge Built-in AI).
-- A small set of personas (Concise, Explorer, Coder) you can pick per chat.
-- Chats are persisted to `localStorage`. Nothing leaves the browser.
-- External agents (Chrome agent, Cursor, Claude, etc.) can drive the app via WebMCP tools (`list_chats`, `new_chat`, `send_message`, `set_mode`, ...).
+- Skills bundle system prompts, tools, examples, and transcript renderers.
+- Threads persist turns to `localStorage` under `locala:v3:agent-threads`. Nothing leaves the browser.
+- External agents (Chrome agent, Cursor, Claude, etc.) can drive the app via WebMCP tools (`list_skills`, `list_threads`, `new_thread`, `send_message`, `set_skill`, ...).
 
 ## Built on web-ai-sdk
 
 locala is a consumer of [`@web-ai-sdk`](https://github.com/obetomuniz/web-ai-sdk), a set of headless wrappers for the browser's Built-in AI APIs:
 
-- [`@web-ai-sdk/prompt`](https://www.npmjs.com/package/@web-ai-sdk/prompt) powers the chat (system prompts, streaming, abort, warm-session reuse).
+- [`@web-ai-sdk/prompt`](https://www.npmjs.com/package/@web-ai-sdk/prompt) powers the agent loop (system prompts, streaming, abort, thread-session reuse).
 - [`@web-ai-sdk/webmcp`](https://www.npmjs.com/package/@web-ai-sdk/webmcp) exposes the in-app tools to external agents.
 
 See [web-ai-sdk.dev](https://web-ai-sdk.dev/) for the docs.

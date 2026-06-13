@@ -384,6 +384,18 @@
     transform var(--t-fast) var(--ease);
 }
 
+.agentp__new-session--wide {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.agentp__header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .agentp__new-session:hover:not(:disabled) {
   color: var(--text);
   box-shadow: var(--shadow-raised);
@@ -724,6 +736,31 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.agentp__thread-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.agentp__thread-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agentp__user-bubble {
+  align-self: flex-end;
+  max-width: min(680px, 86%);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: var(--shadow-soft);
 }
 
 /* A "turn" groups the model's thinking + the tools it called that turn.

@@ -11,8 +11,6 @@
  */
 
 import { useEffect, useState } from "react";
-import { AgentPlayground } from "./playground/AgentPlayground";
-
 const EXPERIMENTAL_PREFIX = "#experimental/";
 
 export const EXPERIMENTAL_HASHES = {
@@ -40,15 +38,12 @@ export function useExperimentalRoute(): string | null {
 export function ExperimentalRoute() {
   const route = useExperimentalRoute();
 
-  const close = () => {
-    history.replaceState(null, "", window.location.pathname + window.location.search);
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
-  };
-
   if (!route) return null;
 
   if (route === "agent") {
-    return <AgentPlayground onClose={close} />;
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    return null;
   }
 
   return null;

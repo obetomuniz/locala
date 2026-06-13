@@ -90,6 +90,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
 
   const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
   const onToolError = options.onToolError ?? "report";
+  const sessionMode = options.sessionMode ?? "run-isolated";
   // URL safety net (same intent as the constraint loop): if the user
   // referenced a URL and a fetch tool exists, fetch it deterministically
   // when the model finalizes without fetching, and flag any URL answer
@@ -116,6 +117,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
   let baseSession: Session | null = null;
   let currentController: AbortController | null = null;
   let currentClone: Session | null = null;
+  let conversationSession: Session | null = null;
   let prefetchedClone: Session | null = null;
   let prefetchInFlight: Promise<void> | null = null;
   let prefetchEpoch = 0;
@@ -147,6 +149,12 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     }
   };
 
+  const acquireConversationSession = async (): Promise<Session> => {
+    if (conversationSession) return conversationSession;
+    conversationSession = await acquireRunSession();
+    return conversationSession;
+  };
+
   const invalidatePrefetchedClone = () => {
     prefetchEpoch++;
     if (prefetchedClone) {
@@ -176,6 +184,9 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
   };
 
   const takeRunSession = async (): Promise<Session> => {
+    if (sessionMode === "thread") {
+      return acquireConversationSession();
+    }
     if (prefetchedClone) {
       const session = prefetchedClone;
       prefetchedClone = null;
@@ -199,7 +210,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
   // Pre-warm the model while the user reads the UI (mirrors the
   // constraint agent), so the first run can claim a ready clone.
   getBase();
-  prefetchRunClone();
+  if (sessionMode === "run-isolated") prefetchRunClone();
 
   async function* loop(
     input: string,
@@ -208,7 +219,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     if (destroyed) throw new AgentUnavailableError("Agent has been destroyed.");
 
     currentController?.abort();
-    currentClone?.destroy();
+    if (sessionMode === "run-isolated") currentClone?.destroy();
     const controller = new AbortController();
     currentController = controller;
     const signal = composeSignals(controller.signal, externalSignal);
@@ -606,9 +617,13 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
       if (stopReason === null) stopReason = "budget_exhausted";
     } finally {
       if (currentController === controller) currentController = null;
-      session.destroy();
-      if (currentClone === session) currentClone = null;
-      prefetchRunClone();
+      if (sessionMode === "run-isolated") {
+        session.destroy();
+        if (currentClone === session) currentClone = null;
+        prefetchRunClone();
+      } else if (currentClone === session) {
+        currentClone = null;
+      }
     }
 
     yield { type: "done", reason: stopReason, text: finalText };
@@ -635,9 +650,11 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
       currentClone?.destroy();
       currentClone = null;
       invalidatePrefetchedClone();
+      conversationSession?.destroy();
+      conversationSession = null;
       baseSession?.destroy();
       baseSession = null;
-      prefetchRunClone();
+      if (sessionMode === "run-isolated") prefetchRunClone();
     },
     destroy() {
       destroyed = true;
@@ -646,6 +663,8 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
       currentClone?.destroy();
       currentClone = null;
       invalidatePrefetchedClone();
+      conversationSession?.destroy();
+      conversationSession = null;
       baseSession?.destroy();
       baseSession = null;
     },

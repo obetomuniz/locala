@@ -8,3 +8,6 @@ dist
 
 # Local-only design notes / handoffs (kept out of the repo)
 .ideas/
+
+# Advisor-generated implementation plans (local only)
+plans/

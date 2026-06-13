@@ -47,7 +47,7 @@ export function Workspace({
         <div className="workspace__title">
           Workspace
           <span className="muted workspace__count">
-            · {chatCount} chat{chatCount === 1 ? "" : "s"}
+            · {chatCount} thread{chatCount === 1 ? "" : "s"}
           </span>
         </div>
         <div className="workspace__chips">
@@ -96,7 +96,7 @@ export function Workspace({
           </div>
           {events.length === 0 ? (
             <div className="pane__empty">
-              Activity from the chat and any WebMCP tool calls shows up here.
+              Activity from the agent and any WebMCP tool calls shows up here.
             </div>
           ) : (
             <ul className="activity">
@@ -121,17 +121,11 @@ export function Workspace({
         </div>
 
         <div className="workspace__pane">
-          <div className="pane__title">Experimental</div>
+          <div className="pane__title">Skills</div>
           <ul className="hints">
             <li>
-              <a
-                className="experimental-link"
-                href="#experimental/agent"
-              >
-                Open Agent Playground →
-              </a>
               <div className="muted experimental-link__detail">
-                Prototype of an on-device agent loop built on top of{" "}
+                Locala now opens directly into an on-device agent built on top of{" "}
                 <a
                   href="https://web-ai-sdk.dev/"
                   target="_blank"
@@ -139,8 +133,7 @@ export function Workspace({
                 >
                   web-ai-sdk.dev
                 </a>
-                . Lives in
-                <code> src/experimental/</code>.
+                . Skills bundle prompts, tools, examples, and renderers.
               </div>
             </li>
           </ul>
@@ -151,30 +144,22 @@ export function Workspace({
           <ul className="hints">
             <li>
               External agents (Chrome agent / Cursor / Claude) can drive this
-              app via WebMCP. Try: <code>list_modes</code>,{" "}
-              <code>list_chats</code>, <code>new_chat</code>,{" "}
-              <code>switch_chat</code>, <code>set_mode</code>,{" "}
-              <code>send_message</code>, <code>clear_chat</code>,{" "}
-              <code>delete_chat</code>.
+              app via WebMCP. Try: <code>list_skills</code>,{" "}
+              <code>list_threads</code>, <code>new_thread</code>,{" "}
+              <code>switch_thread</code>, <code>set_skill</code>,{" "}
+              <code>send_message</code>, <code>clear_thread</code>,{" "}
+              <code>delete_thread</code>.
             </li>
             <li>
-              Each chat gets its own <code>LanguageModel</code> session via{" "}
-              <code>createSession()</code>. History, system prompt, and
-              lifecycle are independent. On reload, the session is seeded
-              from persisted messages so multi-turn context survives.
+              Each active thread reuses a Prompt API session in thread mode.
+              Visible turns persist in <code>locala:v3:agent-threads</code>.
             </li>
             <li>
-              Chats look parallel but the model is single-instance on the
+              Threads look parallel but the model is single-instance on the
               device. Chrome 138+ schedules overlapping{" "}
-              <code>sendStreaming</code> calls FIFO: the active chat finishes
+              <code>sendStreaming</code> calls FIFO: the active thread finishes
               its tokens before the next one starts. The sidebar shows a
-              hollow dot for chats waiting in line.
-            </li>
-            <li>
-              Chat titles use{" "}
-              <code>@web-ai-sdk/summarizer</code> as a headline summary of
-              the first user message (long messages only); short messages
-              fall back to a truncation.
+              hollow dot for work waiting in line.
             </li>
             <li>
               All inference runs on-device via{" "}

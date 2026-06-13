@@ -35,6 +35,8 @@ export interface AgentPreset {
   a2ui?: { enabled: boolean };
 }
 
+export type AgentSkill = AgentPreset;
+
 // Generous raw cap so full blog/article HTML is captured before the
 // tool extracts clean reading text (the article body often sits past
 // the first tens of KB of head / nav / inline CSS).

@@ -2,21 +2,24 @@ import { useEffect, useMemo, useRef } from "react";
 import { defineTool, isAvailable as isWebMCPAvailable, type Tool } from "@web-ai-sdk/webmcp";
 import { useWebMCP } from "@web-ai-sdk/webmcp/react";
 import * as v from "valibot";
-import { MODES, findMode, type Chat } from "./chats";
-import type { ChatOps } from "./useChats";
+import { PRESETS } from "../experimental/playground/presets";
+import { findSkill, type AgentThread } from "./agentThreads";
+import type { AgentThreadOps } from "./useAgentThreads";
 import type { ActivityEvent } from "./types";
 
 interface Args {
-  chats: Chat[];
-  activeChat: Chat;
-  ops: ChatOps;
+  threads: AgentThread[];
+  activeThread: AgentThread;
+  ops: AgentThreadOps;
   send: (text: string) => Promise<void> | void;
   clear: () => void;
+  newSession: () => void;
   pushActivity: (event: Omit<ActivityEvent, "id" | "ts">) => void;
 }
 
-const SwitchChatInput = v.object({ id: v.pipe(v.string(), v.minLength(1)) });
-const DeleteChatInput = SwitchChatInput;
+const ThreadIdInput = v.object({ id: v.pipe(v.string(), v.minLength(1)) });
+const NewThreadInput = v.object({ skillId: v.optional(v.string()) });
+const SetSkillInput = v.object({ skillId: v.pipe(v.string(), v.minLength(1)) });
 const NewChatInput = v.object({ modeId: v.optional(v.string()) });
 const SetModeInput = v.object({ modeId: v.pipe(v.string(), v.minLength(1)) });
 const SendMessageInput = v.object({
@@ -29,8 +32,6 @@ export function useWebMCPTools(args: Args) {
 
   const available = isWebMCPAvailable();
 
-  // defineTool returns Tool<InferredInput, ...> per tool; Tool's TInput is
-  // invariant, so a heterogeneous array needs the cast at the boundary.
   const tools = useMemo<Tool[]>(() => {
     const report = (name: string, detail?: string) => {
       argsRef.current.pushActivity({
@@ -40,108 +41,264 @@ export function useWebMCPTools(args: Args) {
       });
     };
 
-    const built = [
+    const listSkills = defineTool({
+      name: "list_skills",
+      description:
+        "List the agent skills available in Locala. Each skill bundles a system prompt, tools, examples, and renderers.",
+      readOnly: true,
+      execute: async () => {
+        report("list_skills");
+        return {
+          skills: PRESETS.map((skill) => ({
+            id: skill.id,
+            name: skill.name,
+            description: skill.description,
+            toolCount: skill.tools.length,
+          })),
+        };
+      },
+    });
+
+    const listThreads = defineTool({
+      name: "list_threads",
+      description:
+        "List persisted agent threads, with skill ids and turn counts. Use this before switching, deleting, or sending.",
+      readOnly: true,
+      execute: async () => {
+        report("list_threads");
+        const { threads, activeThread } = argsRef.current;
+        return {
+          activeThreadId: activeThread.id,
+          threads: threads.map((thread) => ({
+            id: thread.id,
+            name: thread.name,
+            skillId: thread.skillId,
+            skillName: findSkill(thread.skillId).name,
+            turnCount: thread.turns.length,
+            createdAt: thread.createdAt,
+          })),
+        };
+      },
+    });
+
+    const newThread = defineTool({
+      name: "new_thread",
+      description:
+        "Create and select a new agent thread. Optionally pass a skillId from list_skills.",
+      input: NewThreadInput,
+      inputSchema: {
+        type: "object",
+        properties: { skillId: { type: "string" } },
+      },
+      execute: async ({ skillId }) => {
+        const target = skillId ? findSkill(skillId).id : undefined;
+        const thread = argsRef.current.ops.create(target);
+        argsRef.current.newSession();
+        report("new_thread", `-> ${thread.id}`);
+        return { id: thread.id, skillId: thread.skillId };
+      },
+    });
+
+    const switchThread = defineTool({
+      name: "switch_thread",
+      description: "Switch the active agent thread by id.",
+      input: ThreadIdInput,
+      inputSchema: {
+        type: "object",
+        properties: { id: { type: "string", minLength: 1 } },
+        required: ["id"],
+      },
+      execute: async ({ id }) => {
+        const match = argsRef.current.threads.find((thread) => thread.id === id);
+        if (!match) {
+          report("switch_thread", `unknown id: ${id}`);
+          throw new Error(`No thread with id "${id}".`);
+        }
+        argsRef.current.ops.select(id);
+        argsRef.current.newSession();
+        report("switch_thread", `-> ${match.name}`);
+        return { ok: true, activeThreadId: id };
+      },
+    });
+
+    const deleteThread = defineTool({
+      name: "delete_thread",
+      description:
+        "Delete an agent thread by id. Destructive: persisted turns cannot be recovered.",
+      destructive: true,
+      input: ThreadIdInput,
+      inputSchema: {
+        type: "object",
+        properties: { id: { type: "string", minLength: 1 } },
+        required: ["id"],
+      },
+      execute: async ({ id }) => {
+        const match = argsRef.current.threads.find((thread) => thread.id === id);
+        if (!match) {
+          report("delete_thread", `unknown id: ${id}`);
+          throw new Error(`No thread with id "${id}".`);
+        }
+        argsRef.current.ops.remove(id);
+        report("delete_thread", `x ${match.name}`);
+        return { ok: true };
+      },
+    });
+
+    const setSkill = defineTool({
+      name: "set_skill",
+      description:
+        "Set the active thread skill. If the thread has turns, create a new thread with the requested skill.",
+      input: SetSkillInput,
+      inputSchema: {
+        type: "object",
+        properties: { skillId: { type: "string", minLength: 1 } },
+        required: ["skillId"],
+      },
+      execute: async ({ skillId }) => {
+        const skill = PRESETS.find((candidate) => candidate.id === skillId);
+        if (!skill) {
+          report("set_skill", `unknown skillId: ${skillId}`);
+          throw new Error(`No skill with id "${skillId}".`);
+        }
+        const { activeThread, ops } = argsRef.current;
+        if (activeThread.turns.length === 0) {
+          ops.setSkill(activeThread.id, skill.id);
+        } else {
+          ops.create(skill.id);
+        }
+        argsRef.current.newSession();
+        report("set_skill", `-> ${skill.name}`);
+        return { ok: true, skillId: skill.id };
+      },
+    });
+
+    const sendMessage = defineTool({
+      name: "send_message",
+      description:
+        "Send a message to the active agent thread. The reply streams into the thread.",
+      input: SendMessageInput,
+      inputSchema: {
+        type: "object",
+        properties: { text: { type: "string", minLength: 1 } },
+        required: ["text"],
+      },
+      execute: async ({ text }) => {
+        report("send_message", text);
+        await argsRef.current.send(text);
+        return { ok: true };
+      },
+    });
+
+    const clearThread = defineTool({
+      name: "clear_thread",
+      description:
+        "Clear all turns in the active thread. Destructive: history cannot be recovered.",
+      destructive: true,
+      execute: async () => {
+        argsRef.current.clear();
+        report("clear_thread");
+        return { ok: true };
+      },
+    });
+
+    const aliases = [
       defineTool({
         name: "list_modes",
-        description:
-          "List the persona modes available in this Locala app (e.g. Concise, Explorer, Coder). Each mode has a system prompt and sampling preset.",
+        description: "Deprecated alias for list_skills.",
         readOnly: true,
         execute: async () => {
           report("list_modes");
           return {
-            modes: MODES.map((m) => ({
-              id: m.id,
-              name: m.name,
-              description: m.description,
-              samplingMode: m.samplingMode,
+            modes: PRESETS.map((skill) => ({
+              id: skill.id,
+              name: skill.name,
+              description: skill.description,
+              samplingMode: "predictable",
             })),
           };
         },
       }),
       defineTool({
         name: "list_chats",
-        description:
-          "List the chat instances the user has open, with their current mode and message count. Use to discover ids before switching, deleting, or sending.",
+        description: "Deprecated alias for list_threads.",
         readOnly: true,
         execute: async () => {
           report("list_chats");
-          const { chats, activeChat } = argsRef.current;
+          const { threads, activeThread } = argsRef.current;
           return {
-            activeChatId: activeChat.id,
-            chats: chats.map((c) => ({
-              id: c.id,
-              name: c.name,
-              modeId: c.modeId,
-              modeName: findMode(c.modeId).name,
-              messageCount: c.messages.length,
-              createdAt: c.createdAt,
+            activeChatId: activeThread.id,
+            chats: threads.map((thread) => ({
+              id: thread.id,
+              name: thread.name,
+              modeId: thread.skillId,
+              modeName: findSkill(thread.skillId).name,
+              messageCount: thread.turns.length,
+              createdAt: thread.createdAt,
             })),
           };
         },
       }),
       defineTool({
         name: "new_chat",
-        description:
-          "Create a new chat instance and select it. Optionally specify a modeId from list_modes; defaults to the first mode.",
+        description: "Deprecated alias for new_thread.",
         input: NewChatInput,
         inputSchema: {
           type: "object",
           properties: { modeId: { type: "string" } },
         },
         execute: async ({ modeId }) => {
-          const target = modeId ? findMode(modeId).id : undefined;
-          const chat = argsRef.current.ops.create(target);
-          report("new_chat", `→ ${chat.id}`);
-          return { id: chat.id, modeId: chat.modeId };
+          const target = modeId ? findSkill(modeId).id : undefined;
+          const thread = argsRef.current.ops.create(target);
+          argsRef.current.newSession();
+          report("new_chat", `-> ${thread.id}`);
+          return { id: thread.id, modeId: thread.skillId };
         },
       }),
       defineTool({
         name: "switch_chat",
-        description:
-          "Switch the active chat instance by id. Call list_chats first to learn valid ids.",
-        input: SwitchChatInput,
+        description: "Deprecated alias for switch_thread.",
+        input: ThreadIdInput,
         inputSchema: {
           type: "object",
           properties: { id: { type: "string", minLength: 1 } },
           required: ["id"],
         },
         execute: async ({ id }) => {
-          const match = argsRef.current.chats.find((c) => c.id === id);
+          const match = argsRef.current.threads.find((thread) => thread.id === id);
           if (!match) {
             report("switch_chat", `unknown id: ${id}`);
             throw new Error(`No chat with id "${id}".`);
           }
           argsRef.current.ops.select(id);
-          report("switch_chat", `→ ${match.name}`);
+          argsRef.current.newSession();
+          report("switch_chat", `-> ${match.name}`);
           return { ok: true, activeChatId: id };
         },
       }),
       defineTool({
         name: "delete_chat",
-        description:
-          "Delete a chat instance by id. Destructive: messages cannot be recovered. If the last chat is deleted, a fresh empty one is created.",
+        description: "Deprecated alias for delete_thread.",
         destructive: true,
-        input: DeleteChatInput,
+        input: ThreadIdInput,
         inputSchema: {
           type: "object",
           properties: { id: { type: "string", minLength: 1 } },
           required: ["id"],
         },
         execute: async ({ id }) => {
-          const match = argsRef.current.chats.find((c) => c.id === id);
+          const match = argsRef.current.threads.find((thread) => thread.id === id);
           if (!match) {
             report("delete_chat", `unknown id: ${id}`);
             throw new Error(`No chat with id "${id}".`);
           }
           argsRef.current.ops.remove(id);
-          report("delete_chat", `× ${match.name}`);
+          report("delete_chat", `x ${match.name}`);
           return { ok: true };
         },
       }),
       defineTool({
         name: "set_mode",
-        description:
-          "Set the mode (persona) of the active chat. Call list_modes for valid ids.",
+        description: "Deprecated alias for set_skill.",
         input: SetModeInput,
         inputSchema: {
           type: "object",
@@ -149,46 +306,41 @@ export function useWebMCPTools(args: Args) {
           required: ["modeId"],
         },
         execute: async ({ modeId }) => {
-          const mode = MODES.find((m) => m.id === modeId);
-          if (!mode) {
+          const skill = PRESETS.find((candidate) => candidate.id === modeId);
+          if (!skill) {
             report("set_mode", `unknown modeId: ${modeId}`);
             throw new Error(`No mode with id "${modeId}".`);
           }
-          const { activeChat, ops } = argsRef.current;
-          ops.setMode(activeChat.id, modeId);
-          report("set_mode", `→ ${mode.name}`);
-          return { ok: true, modeId };
-        },
-      }),
-      defineTool({
-        name: "send_message",
-        description:
-          "Send a message to the active chat on behalf of the user. The reply streams into the chat. Confirm wording with the user before sending sensitive content.",
-        input: SendMessageInput,
-        inputSchema: {
-          type: "object",
-          properties: { text: { type: "string", minLength: 1 } },
-          required: ["text"],
-        },
-        execute: async ({ text }) => {
-          report("send_message", text);
-          await argsRef.current.send(text);
-          return { ok: true };
+          const { activeThread, ops } = argsRef.current;
+          if (activeThread.turns.length === 0) {
+            ops.setSkill(activeThread.id, skill.id);
+          } else {
+            ops.create(skill.id);
+          }
+          argsRef.current.newSession();
+          report("set_mode", `-> ${skill.name}`);
+          return { ok: true, modeId: skill.id };
         },
       }),
       defineTool({
         name: "clear_chat",
-        description:
-          "Clear all messages in the active chat. Destructive: history cannot be recovered.",
+        description: "Deprecated alias for clear_thread.",
         destructive: true,
-        execute: async () => {
-          argsRef.current.clear();
-          report("clear_chat");
-          return { ok: true };
-        },
+        execute: clearThread.execute,
       }),
     ];
-    return built as unknown as Tool[];
+
+    return [
+      listSkills,
+      listThreads,
+      newThread,
+      switchThread,
+      deleteThread,
+      setSkill,
+      sendMessage,
+      clearThread,
+      ...aliases,
+    ] as unknown as Tool[];
   }, []);
 
   useWebMCP(tools);
@@ -198,7 +350,7 @@ export function useWebMCPTools(args: Args) {
       argsRef.current.pushActivity({
         kind: "info",
         message: "WebMCP tools registered",
-        detail: tools.map((t) => t.name).join(", "),
+        detail: tools.map((tool) => tool.name).join(", "),
       });
     }
   }, [available, tools]);
