@@ -98,8 +98,7 @@ export function useAgent(options: UseAgentOptions): UseAgentReturn {
   }, [
     options.systemPrompt,
     options.maxSteps,
-    options.temperature,
-    options.topK,
+    options.samplingMode,
     options.language,
     options.onToolError,
     options.tools,

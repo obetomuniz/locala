@@ -110,7 +110,7 @@ export function useExamples(preset: AgentPreset): UseExamplesReturn {
         input: promptInput,
         systemPrompt:
           "You generate JSON exactly matching the requested schema. Never write prose outside the JSON envelope. Never wrap the JSON in markdown fences.",
-        temperature: 0.8,
+        samplingMode: "most-creative",
         responseConstraint: SCHEMA,
       });
       if (!result.output) throw new Error("Empty response from model.");

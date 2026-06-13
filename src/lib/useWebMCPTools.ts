@@ -53,7 +53,7 @@ export function useWebMCPTools(args: Args) {
               id: m.id,
               name: m.name,
               description: m.description,
-              temperature: m.temperature,
+              samplingMode: m.samplingMode,
             })),
           };
         },

@@ -1,3 +1,4 @@
+import type { LanguageModelSamplingMode } from "@web-ai-sdk/prompt";
 import type { A2uiServerMessage } from "./a2ui/types";
 
 /**
@@ -268,8 +269,7 @@ export interface CreateAgentOptions {
   tools?: readonly AgentTool[];
   /** Required upper bound on planning loop iterations. Defaults to 5. */
   maxSteps?: number;
-  temperature?: number;
-  topK?: number;
+  samplingMode?: LanguageModelSamplingMode;
   language?: string;
   onToolError?: AgentOnToolErrorPolicy;
   /**

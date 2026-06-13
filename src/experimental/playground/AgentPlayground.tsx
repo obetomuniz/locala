@@ -48,7 +48,7 @@ export function AgentPlayground({ onClose }: Props) {
     systemPrompt: preset.systemPrompt,
     tools,
     maxSteps: 6,
-    temperature: 0.3,
+    samplingMode: "predictable",
     // Chrome warns (and degrades output quality) when no output language
     // is set on a LanguageModel request. Pin English for the planner.
     language: "en",
