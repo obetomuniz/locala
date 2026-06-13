@@ -9,20 +9,20 @@ importers:
   .:
     dependencies:
       '@web-ai-sdk/detector':
-        specifier: ^0.5.1
-        version: 0.5.1(react@18.3.1)
+        specifier: ^0.6.1
+        version: 0.6.1(react@18.3.1)
       '@web-ai-sdk/prompt':
-        specifier: ^0.5.2
-        version: 0.5.2(react@18.3.1)
+        specifier: ^0.7.1
+        version: 0.7.1(react@18.3.1)
       '@web-ai-sdk/summarizer':
-        specifier: ^0.5.1
-        version: 0.5.1(react@18.3.1)
+        specifier: ^0.6.1
+        version: 0.6.1(react@18.3.1)
       '@web-ai-sdk/translator':
-        specifier: ^0.5.1
-        version: 0.5.1(react@18.3.1)
+        specifier: ^0.6.1
+        version: 0.6.1(react@18.3.1)
       '@web-ai-sdk/webmcp':
-        specifier: ^0.5.1
-        version: 0.5.1(react@18.3.1)
+        specifier: ^0.6.0
+        version: 0.6.0(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -614,40 +614,40 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
-  '@web-ai-sdk/detector@0.5.1':
-    resolution: {integrity: sha512-nL6avkYW6wGUkue8fSFB6xJPrJVeslCvxwG1NowYgXSHw4qRjtjOdCrZRsy6TY2/hnUcB0r+eHlH0nsqG7o+qg==}
+  '@web-ai-sdk/detector@0.6.1':
+    resolution: {integrity: sha512-FYU5ep58ez9FNruAuwreWeKXdIx+xgpYUhhdXujg5ve0F18+f9/vs1uvUC5B/X1Hr2I8UEB1oFBuR8c7g7S65A==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@web-ai-sdk/prompt@0.5.2':
-    resolution: {integrity: sha512-tO/QmhH14NVKLCUIatzU2avWxyIONqdj+fQtto+Rb499FMiNjs6oGmTDW7qVBGXTolKPrl3XOsgAqwDumrCw5w==}
+  '@web-ai-sdk/prompt@0.7.1':
+    resolution: {integrity: sha512-KfwMGvjErYQOJhbojPJlbkBD8G5GkWmHU8uayTApnmTvCrabMP3IW1T2Gru2pIk042hPkn+wHG1YoqFwkuUiwQ==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@web-ai-sdk/summarizer@0.5.1':
-    resolution: {integrity: sha512-nX/x6KaSsLa4Emi76mDzrUx2cv72SuMdXwelJBPFv5e8XEQa1X0MLvp660QowfLd5oYI55rnjSdvXzSMIlmolw==}
+  '@web-ai-sdk/summarizer@0.6.1':
+    resolution: {integrity: sha512-wrO4UAK2JGeqXtKtBht6sefME2cprodQSbJvmQJneNigAdPcGIopNY9k1wbOyAZ2bb/WvqmFnd9RiNvjmm3S8A==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@web-ai-sdk/translator@0.5.1':
-    resolution: {integrity: sha512-5hqQ+UCYL5zDj/S/Yyd/NbGDSADJE/+T1Oe6mHQIzUdbEG5NeAJphp7JdYmtzrldj0gfYVbSmR5D8MGJ2oCZ5Q==}
+  '@web-ai-sdk/translator@0.6.1':
+    resolution: {integrity: sha512-rpT+lVUQ957W8azcrRLyGd3tdi4oGeCWiOKYUh5mDFHPSaQWofH67R3x9IsgnPwsEctiVhgUtvdM97/jjJnEkQ==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@web-ai-sdk/webmcp@0.5.1':
-    resolution: {integrity: sha512-OX89OVPzVYHJEcsnyxugOsl1bTEqAYYHqakfQGojcCnHDqq2Vmo2nTd5gbGE2Iuyqh04+YWueVqfldzSoomR/w==}
+  '@web-ai-sdk/webmcp@0.6.0':
+    resolution: {integrity: sha512-X1HgfWFVTNePh20aYNaGCsCHQtLgTgj6NFqfzFjiAwN0fytGABX8TuMQcGotCP8O0GaP3HOFZLwhnVtniVWZow==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
@@ -1919,23 +1919,23 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@web-ai-sdk/detector@0.5.1(react@18.3.1)':
+  '@web-ai-sdk/detector@0.6.1(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 
-  '@web-ai-sdk/prompt@0.5.2(react@18.3.1)':
+  '@web-ai-sdk/prompt@0.7.1(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 
-  '@web-ai-sdk/summarizer@0.5.1(react@18.3.1)':
+  '@web-ai-sdk/summarizer@0.6.1(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 
-  '@web-ai-sdk/translator@0.5.1(react@18.3.1)':
+  '@web-ai-sdk/translator@0.6.1(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 
-  '@web-ai-sdk/webmcp@0.5.1(react@18.3.1)':
+  '@web-ai-sdk/webmcp@0.6.0(react@18.3.1)':
     optionalDependencies:
       react: 18.3.1
 

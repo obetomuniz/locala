@@ -99,8 +99,7 @@ export function useChat({ chat, mode, ops, onActivity }: UseChatArgs) {
 
     const initialPrompts = seedInitialPrompts(c, m);
     const session = createSession({
-      temperature: m.temperature,
-      topK: m.topK,
+      samplingMode: m.samplingMode,
       createOptions:
         initialPrompts.length > 0 ? { initialPrompts } : undefined,
       // systemPrompt is folded into initialPrompts above when there is

@@ -1,3 +1,4 @@
+import type { LanguageModelSamplingMode } from "@web-ai-sdk/prompt";
 import type { ChatMessage } from "./types";
 
 export interface Mode {
@@ -5,8 +6,7 @@ export interface Mode {
   name: string;
   description: string;
   systemPrompt: string;
-  temperature: number;
-  topK?: number;
+  samplingMode: LanguageModelSamplingMode;
 }
 
 export const MODES: Mode[] = [
@@ -16,7 +16,7 @@ export const MODES: Mode[] = [
     description: "Short, no-frills answers.",
     systemPrompt:
       "You are a precise assistant. Reply in one or two short sentences unless the user asks for more.",
-    temperature: 0.2,
+    samplingMode: "most-predictable",
   },
   {
     id: "explorer",
@@ -24,7 +24,7 @@ export const MODES: Mode[] = [
     description: "Thinks out loud, suggests options.",
     systemPrompt:
       "You are a curious collaborator. Explore the question, surface trade-offs, and propose 2-3 directions before recommending one.",
-    temperature: 0.7,
+    samplingMode: "creative",
   },
   {
     id: "coder",
@@ -32,7 +32,7 @@ export const MODES: Mode[] = [
     description: "TypeScript / web platform focus.",
     systemPrompt:
       "You are a senior web engineer. Prefer TypeScript and modern browser APIs. Show small, runnable snippets.",
-    temperature: 0.3,
+    samplingMode: "predictable",
   },
 ];
 

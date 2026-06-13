@@ -125,8 +125,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     if (!baseSession) {
       baseSession = createSession({
         systemPrompt,
-        temperature: options.temperature,
-        topK: options.topK,
+        samplingMode: options.samplingMode,
         language: options.language,
         tools: sdkTools,
       });
@@ -141,8 +140,7 @@ export function createAgentLoop(options: CreateAgentOptions = {}): Agent {
     } catch {
       return createSession({
         systemPrompt,
-        temperature: options.temperature,
-        topK: options.topK,
+        samplingMode: options.samplingMode,
         language: options.language,
         tools: sdkTools,
       });
