@@ -1,5 +1,13 @@
 # locala
 
+> [!IMPORTANT]
+> **This repository is archived.** Locala has moved into
+> [`web-ai-sdk`](https://github.com/obetomuniz/web-ai-sdk) as the
+> [local-first agent playground](https://web-ai-sdk.dev/playground/).
+> Development continues there; see
+> [`web-ai-sdk#145`](https://github.com/obetomuniz/web-ai-sdk/pull/145)
+> for the migration.
+
 Local chats in your browser. On-device chat using the Web Built-in AI APIs, with zero round-trips to a backend.
 
 - All inference runs on-device via `navigator.LanguageModel` (Chrome / Edge Built-in AI).
